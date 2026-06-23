@@ -12,11 +12,11 @@ export function CTASection() {
       {/* Full-bleed background image */}
       <div className="absolute inset-0">
         <Image
-          src="/menu/hero.jpg"
-          alt="Grill fire background"
+          src="https://images.pexels.com/photos/1633578/pexels-photo-1633578.jpeg?auto=compress&cs=tinysrgb&fit=crop&h=800&w=1600"
+          alt="Meat sizzling on a live-fire grill"
           fill
           sizes="100vw"
-          className="object-cover opacity-25"
+          className="object-cover opacity-30"
         />
         <div className="absolute inset-0 bg-gradient-to-r from-[#0d0d0d] via-[#0d0d0d]/80 to-[#0d0d0d]/60" />
       </div>

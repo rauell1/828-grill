@@ -8,7 +8,7 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
 
   const { id } = await params;
   const body = await req.json();
-  const { name, description, price, category, imageUrl, available, popular } = body;
+  const { name, description, price, category, imageUrl, available, popular, allergens } = body;
 
   const VALID_CATEGORIES = ['Burgers', 'Sides', 'Drinks', 'Combos'];
   if (category && !VALID_CATEGORIES.includes(category)) {
@@ -16,6 +16,7 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
   }
 
   const sql = getSql();
+  await sql`ALTER TABLE "MenuItem" ADD COLUMN IF NOT EXISTS allergens TEXT`.catch(() => {});
 
   const rows = await sql`
     UPDATE "MenuItem"
@@ -26,7 +27,8 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
       category    = COALESCE(${category ?? null}, category),
       "imageUrl"  = COALESCE(${imageUrl != null ? String(imageUrl).trim() : null}, "imageUrl"),
       available   = COALESCE(${available != null ? Boolean(available) : null}, available),
-      featured    = COALESCE(${popular != null ? Boolean(popular) : null}, featured)
+      featured    = COALESCE(${popular != null ? Boolean(popular) : null}, featured),
+      allergens   = CASE WHEN ${allergens !== undefined} THEN ${allergens ? String(allergens).trim() : null} ELSE allergens END
     WHERE id = ${id}
     RETURNING *
   `;

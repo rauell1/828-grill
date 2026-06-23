@@ -4,7 +4,7 @@ import "./globals.css";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as SonnerToaster } from "@/components/ui/sonner";
 import { Providers } from "@/components/providers";
-import { Analytics } from "@vercel/analytics/next";
+import { CookieConsent } from "@/components/grill/cookie-consent";
 
 const bebas = Bebas_Neue({
   variable: "--font-bebas",
@@ -77,7 +77,7 @@ export default function RootLayout({
             },
           }}
         />
-        <Analytics />
+        <CookieConsent />
       </body>
     </html>
   );

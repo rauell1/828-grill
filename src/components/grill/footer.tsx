@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useUI, View } from '@/store/ui';
 
 export function Footer() {
@@ -52,7 +53,15 @@ export function Footer() {
           <p className="text-xs text-[#888]">
             © {new Date().getFullYear()} 828 Grill LLC. All rights reserved.
           </p>
-          <p className="text-xs text-[#888]">EST. 828 · CRAFTED WITH FIRE</p>
+          <div className="flex items-center gap-4">
+            <Link href="/privacy" className="text-xs text-[#666] transition-colors hover:text-[#E8531A]">
+              Privacy Policy
+            </Link>
+            <Link href="/terms" className="text-xs text-[#666] transition-colors hover:text-[#E8531A]">
+              Terms of Service
+            </Link>
+            <span className="text-xs text-[#444]">EST. 828 · CRAFTED WITH FIRE</span>
+          </div>
         </div>
       </div>
     </footer>

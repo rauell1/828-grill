@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import Image from 'next/image';
-import { Star } from 'lucide-react';
+import { Star, AlertTriangle } from 'lucide-react';
 import { useCart } from '@/store/cart';
 import { useToast } from '@/hooks/use-toast';
 
@@ -16,6 +16,7 @@ export interface MenuItemData {
   featured?: boolean;
   popular?: boolean;
   available?: boolean;
+  allergens?: string;
 }
 
 export function MenuCard({ item }: { item: MenuItemData }) {
@@ -83,6 +84,14 @@ export function MenuCard({ item }: { item: MenuItemData }) {
         <p className="mt-4 flex-1 text-sm leading-6 text-[#888888]">
           {item.description}
         </p>
+
+        {/* Allergen disclosure */}
+        {item.allergens && (
+          <div className="mt-3 flex items-start gap-1.5 rounded bg-yellow-500/8 px-2.5 py-2 text-xs text-yellow-400/90">
+            <AlertTriangle className="mt-0.5 h-3 w-3 shrink-0" />
+            <span><span className="font-bold">Contains:</span> {item.allergens}</span>
+          </div>
+        )}
 
         {/* Ghost outline Add to Cart button */}
         <button

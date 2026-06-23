@@ -35,6 +35,7 @@ interface AdminItem {
   imageUrl: string;
   available: boolean;
   featured: boolean;
+  allergens?: string;
 }
 
 interface Subscriber { id: string; name: string; email: string; }
@@ -42,7 +43,7 @@ interface Campaign { id: string; subject: string; sentAt: string; recipientCount
 
 const EMPTY_FORM: Omit<AdminItem, 'id'> = {
   name: '', description: '', price: 0, category: 'Burgers',
-  imageUrl: '', available: true, featured: false,
+  imageUrl: '', available: true, featured: false, allergens: '',
 };
 
 export function AdminView() {
@@ -129,7 +130,7 @@ export function AdminView() {
     setEditId(item.id);
     setForm({ name: item.name, description: item.description, price: item.price,
       category: item.category, imageUrl: item.imageUrl,
-      available: item.available, featured: item.featured });
+      available: item.available, featured: item.featured, allergens: item.allergens ?? '' });
     setImgPreviewError(false); setImageMode('url');
     setPanelOpen(true);
   };
@@ -817,6 +818,21 @@ export function AdminView() {
                   onChange={(e) => setForm({ ...form, description: e.target.value })}
                   className="w-full resize-none rounded-lg border border-white/10 bg-[#141414] px-3 py-2.5 text-sm leading-6 text-[#f5f0e8] outline-none transition-colors placeholder:text-[#444] focus:border-[#e8531a]/50"
                 />
+              </div>
+
+              {/* Allergens */}
+              <div>
+                <label className="mb-1.5 block font-mono text-[10px] uppercase tracking-widest text-[#555]">
+                  Allergens <span className="text-yellow-500">(FDA required)</span>
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g. Wheat, Milk, Eggs, Soy — leave blank if none"
+                  value={(form as any).allergens ?? ''}
+                  onChange={(e) => setForm({ ...form, allergens: e.target.value } as any)}
+                  className="w-full rounded-lg border border-white/10 bg-[#141414] px-3 py-2.5 text-sm text-[#f5f0e8] outline-none transition-colors placeholder:text-[#444] focus:border-yellow-500/50"
+                />
+                <p className="mt-1 text-[11px] text-[#555]">Shown on menu card as a warning badge. List the 9 major allergens present.</p>
               </div>
 
               {/* Toggles */}

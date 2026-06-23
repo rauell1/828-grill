@@ -12,8 +12,9 @@ import { useUI } from '@/store/ui';
 import { cn } from '@/lib/utils';
 import { AdminOrders } from './admin-orders';
 import { AdminAnalytics } from './admin-analytics';
+import { AdminLiveOrders } from './admin-live-orders';
 
-type Tab = 'menu' | 'orders' | 'customers' | 'feedback' | 'newsletter' | 'analytics';
+type Tab = 'live' | 'menu' | 'orders' | 'customers' | 'feedback' | 'newsletter' | 'analytics';
 type Category = 'Burgers' | 'Sides' | 'Drinks' | 'Combos';
 type ImageMode = 'url' | 'upload';
 
@@ -50,7 +51,7 @@ export function AdminView() {
   const setView = useUI((s) => s.setView);
 
   // ── Tabs ──────────────────────────────────────────────────────────────
-  const [tab, setTab] = useState<Tab>('menu');
+  const [tab, setTab] = useState<Tab>('live');
 
   // ── Menu state ────────────────────────────────────────────────────────
   const [items, setItems] = useState<AdminItem[]>([]);
@@ -351,6 +352,7 @@ export function AdminView() {
         {/* Tab nav */}
         <div className="mx-auto flex max-w-screen-xl gap-1 px-5 pb-0">
           {([
+            { key: 'live', icon: Clock, label: 'Live' },
             { key: 'menu', icon: LayoutGrid, label: 'Menu' },
             { key: 'orders', icon: ShoppingBag, label: 'Orders' },
             { key: 'customers', icon: Users, label: 'Customers' },
@@ -375,6 +377,9 @@ export function AdminView() {
       </header>
 
       <div className="mx-auto w-full max-w-screen-xl flex-1 px-5 py-8">
+
+        {/* ══════════════ LIVE TAB ══════════════ */}
+        {tab === 'live' && <AdminLiveOrders />}
 
         {/* ══════════════ MENU TAB ══════════════ */}
         {tab === 'menu' && (

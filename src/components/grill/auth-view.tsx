@@ -66,6 +66,8 @@ export function AuthView() {
         email: form.email,
         password: form.password,
         name: form.name,
+        phone: form.phone || undefined,
+        address: form.address || undefined,
       });
       if (error) {
         toast.error(error.message || 'Registration failed');

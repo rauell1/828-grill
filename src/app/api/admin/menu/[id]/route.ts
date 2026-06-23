@@ -15,20 +15,23 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
     return NextResponse.json({ error: 'Invalid category' }, { status: 400 });
   }
 
+  const { stockCount } = body;
   const sql = getSql();
   await sql`ALTER TABLE "MenuItem" ADD COLUMN IF NOT EXISTS allergens TEXT`.catch(() => {});
+  await sql`ALTER TABLE "MenuItem" ADD COLUMN IF NOT EXISTS "stockCount" INT`.catch(() => {});
 
   const rows = await sql`
     UPDATE "MenuItem"
     SET
-      name        = COALESCE(${name ? String(name).trim() : null}, name),
-      description = COALESCE(${description != null ? String(description).trim() : null}, description),
-      price       = COALESCE(${price != null ? Number(price) : null}, price),
-      category    = COALESCE(${category ?? null}, category),
-      "imageUrl"  = COALESCE(${imageUrl != null ? String(imageUrl).trim() : null}, "imageUrl"),
-      available   = COALESCE(${available != null ? Boolean(available) : null}, available),
-      featured    = COALESCE(${popular != null ? Boolean(popular) : null}, featured),
-      allergens   = CASE WHEN ${allergens !== undefined} THEN ${allergens ? String(allergens).trim() : null} ELSE allergens END
+      name          = COALESCE(${name ? String(name).trim() : null}, name),
+      description   = COALESCE(${description != null ? String(description).trim() : null}, description),
+      price         = COALESCE(${price != null ? Number(price) : null}, price),
+      category      = COALESCE(${category ?? null}, category),
+      "imageUrl"    = COALESCE(${imageUrl != null ? String(imageUrl).trim() : null}, "imageUrl"),
+      available     = COALESCE(${available != null ? Boolean(available) : null}, available),
+      featured      = COALESCE(${popular != null ? Boolean(popular) : null}, featured),
+      allergens     = CASE WHEN ${allergens !== undefined} THEN ${allergens ? String(allergens).trim() : null} ELSE allergens END,
+      "stockCount"  = CASE WHEN ${stockCount !== undefined} THEN ${stockCount != null ? parseInt(stockCount) : null} ELSE "stockCount" END
     WHERE id = ${id}
     RETURNING *
   `;

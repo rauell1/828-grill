@@ -14,6 +14,7 @@ export interface MenuItemData {
   popular?: boolean;
   available?: boolean;
   allergens?: string;
+  stockCount?: number | null;
 }
 
 interface Props {
@@ -50,6 +51,13 @@ export function MenuCard({ item, restaurantOpen = true, onOpen }: Props) {
             <Star className="h-3 w-3 fill-white text-white" />
             <span className="font-mono text-[10px] font-bold uppercase tracking-wider text-white">
               Popular
+            </span>
+          </div>
+        )}
+        {item.stockCount != null && item.stockCount > 0 && item.stockCount <= 5 && (
+          <div className="absolute left-3 top-3 rounded-full bg-yellow-500/90 px-2.5 py-1">
+            <span className="font-mono text-[10px] font-bold uppercase tracking-wider text-black">
+              Only {item.stockCount} left
             </span>
           </div>
         )}

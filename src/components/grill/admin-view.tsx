@@ -38,6 +38,7 @@ interface AdminItem {
   available: boolean;
   featured: boolean;
   allergens?: string;
+  stockCount?: number | null;
 }
 
 interface Subscriber { id: string; name: string; email: string; }
@@ -45,7 +46,7 @@ interface Campaign { id: string; subject: string; sentAt: string; recipientCount
 
 const EMPTY_FORM: Omit<AdminItem, 'id'> = {
   name: '', description: '', price: 0, category: 'Burgers',
-  imageUrl: '', available: true, featured: false, allergens: '',
+  imageUrl: '', available: true, featured: false, allergens: '', stockCount: null,
 };
 
 export function AdminView() {
@@ -239,7 +240,8 @@ export function AdminView() {
     setEditId(item.id);
     setForm({ name: item.name, description: item.description, price: item.price,
       category: item.category, imageUrl: item.imageUrl,
-      available: item.available, featured: item.featured, allergens: item.allergens ?? '' });
+      available: item.available, featured: item.featured, allergens: item.allergens ?? '',
+      stockCount: (item as any).stockCount ?? null });
     setImgPreviewError(false); setImageMode('url');
     setPanelOpen(true);
   };
@@ -1350,6 +1352,22 @@ export function AdminView() {
                   className="w-full rounded-lg border border-white/10 bg-[#141414] px-3 py-2.5 text-sm text-[#f5f0e8] outline-none transition-colors placeholder:text-[#444] focus:border-yellow-500/50"
                 />
                 <p className="mt-1 text-[11px] text-[#555]">Shown on menu card as a warning badge. List the 9 major allergens present.</p>
+              </div>
+
+              {/* Stock count */}
+              <div>
+                <label className="mb-1.5 block font-mono text-[10px] uppercase tracking-widest text-[#555]">
+                  Stock count <span className="text-[#444] normal-case font-normal">(leave blank for unlimited)</span>
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  placeholder="Unlimited"
+                  value={(form as any).stockCount ?? ''}
+                  onChange={(e) => setForm({ ...form, stockCount: e.target.value === '' ? null : parseInt(e.target.value) } as any)}
+                  className="w-full rounded-lg border border-white/10 bg-[#141414] px-3 py-2.5 text-sm text-[#f5f0e8] outline-none transition-colors placeholder:text-[#444] focus:border-[#e8531a]/50"
+                />
+                <p className="mt-1 text-[11px] text-[#555]">Customers see &apos;Only N left&apos; when stock ≤ 5. Item is hidden from menu when stock reaches 0.</p>
               </div>
 
               {/* Toggles */}

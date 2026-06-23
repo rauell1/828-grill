@@ -4,9 +4,10 @@ import { getSql } from '@/lib/db';
 export async function GET() {
   try {
     const sql = getSql();
+    await sql`ALTER TABLE "MenuItem" ADD COLUMN IF NOT EXISTS "stockCount" INT`.catch(() => {});
     const items = await sql`
       SELECT * FROM "MenuItem"
-      WHERE available = true
+      WHERE available = true AND ("stockCount" IS NULL OR "stockCount" > 0)
       ORDER BY category ASC, name ASC
     `;
     return NextResponse.json({ items });

@@ -18,7 +18,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 
-const TAX_RATE = 0.08;
+const TAX_RATE = parseFloat(process.env.NEXT_PUBLIC_TAX_RATE ?? '0.08');
 const SERVICE_FEE = 1.5;
 
 const stripePromise = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY
@@ -273,35 +273,120 @@ function PromoField({
   );
 }
 
+// ── Tip selector ──────────────────────────────────────────────────────────────
+const TIP_PRESETS = [
+  { label: 'No tip', pct: 0 },
+  { label: '15%', pct: 15 },
+  { label: '18%', pct: 18 },
+  { label: '20%', pct: 20 },
+] as const;
+
+function TipSelector({
+  sub, tip, setTip,
+}: { sub: number; tip: number; setTip: (v: number) => void }) {
+  const [mode, setMode] = useState<0 | 15 | 18 | 20 | 'custom'>(0);
+  const [customStr, setCustomStr] = useState('');
+
+  const choose = (pct: 0 | 15 | 18 | 20) => {
+    setMode(pct);
+    setTip(pct === 0 ? 0 : Math.round(sub * (pct / 100) * 100) / 100);
+  };
+
+  return (
+    <div>
+      <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-[#888888]">
+        Tip <span className="normal-case text-[#555]">(optional)</span>
+      </label>
+      <div className="flex gap-2">
+        {TIP_PRESETS.map(({ label, pct }) => (
+          <button
+            key={pct}
+            type="button"
+            onClick={() => choose(pct as 0 | 15 | 18 | 20)}
+            className={`flex-1 rounded-lg border py-2 text-xs font-bold transition-colors ${
+              mode === pct && mode !== 0
+                ? 'border-[#e8531a] bg-[#e8531a]/10 text-[#e8531a]'
+                : mode === 0 && pct === 0
+                ? 'border-[#e8531a] bg-[#e8531a]/10 text-[#e8531a]'
+                : 'border-white/10 text-[#888] hover:border-white/20 hover:text-[#f5f0e8]'
+            }`}
+          >
+            {label}
+          </button>
+        ))}
+        <button
+          type="button"
+          onClick={() => { setMode('custom'); setTip(parseFloat(customStr) || 0); }}
+          className={`flex-1 rounded-lg border py-2 text-xs font-bold transition-colors ${
+            mode === 'custom'
+              ? 'border-[#e8531a] bg-[#e8531a]/10 text-[#e8531a]'
+              : 'border-white/10 text-[#888] hover:border-white/20 hover:text-[#f5f0e8]'
+          }`}
+        >
+          Custom
+        </button>
+      </div>
+      {mode === 'custom' && (
+        <div className="mt-2 flex items-center gap-2">
+          <span className="text-sm text-[#888]">$</span>
+          <input
+            type="number"
+            min="0"
+            step="0.01"
+            placeholder="0.00"
+            value={customStr}
+            onChange={(e) => {
+              setCustomStr(e.target.value);
+              setTip(Math.max(0, parseFloat(e.target.value) || 0));
+            }}
+            className="w-full rounded-lg border border-white/10 bg-[#0d0d0d] px-3 py-2 text-sm text-[#f5f0e8] outline-none transition-colors focus:border-[#e8531a]"
+          />
+        </div>
+      )}
+      {tip > 0 && (
+        <p className="mt-1 text-xs text-[#888]">
+          Tip: <span className="font-data text-[#f5f0e8]">${tip.toFixed(2)}</span> — thank you!
+        </p>
+      )}
+    </div>
+  );
+}
+
 // ── Main CheckoutView ─────────────────────────────────────────────────────────
 export function CheckoutView() {
   const { items, subtotal, clear } = useCart();
   const { setView, setOrderId, orderId } = useUI();
   const { data: session } = authClient.useSession();
 
+  // session === undefined means "still loading"; null means "no user"
+  const sessionLoading = session === undefined;
+  const user = session?.user ?? null;
+
   const [step, setStep] = useState<'form' | 'creating' | 'done'>('form');
   const [orderData, setOrderData] = useState<any>(null);
   const [pendingOrder, setPendingOrder] = useState<{
     id: string; stripeId: string; clientSecret: string | null; stripeEnabled: boolean;
-    discount: number;
+    discount: number; tip: number;
   } | null>(null);
   const [delivery, setDelivery] = useState({ phone: '', address: '', notes: '' });
+  const [guestName, setGuestName] = useState('');
+  const [guestEmail, setGuestEmail] = useState('');
   const [promoCode, setPromoCode] = useState<string | null>(null);
   const [promoLabel, setPromoLabel] = useState<string | null>(null);
+  const [tip, setTip] = useState(0);
 
   const sub = subtotal();
-  // Client-side discount preview (approximate — server is authoritative)
-  const previewDiscount = promoCode ? 0 : 0; // shown as "saving" line after server confirms
   const tax = Math.round(sub * TAX_RATE * 100) / 100;
   const fee = items.length > 0 ? SERVICE_FEE : 0;
-  const total = Math.round((sub + tax + fee) * 100) / 100;
+  const total = Math.round((sub + tax + fee + tip) * 100) / 100;
 
   // After order created, use server-confirmed values
   const confirmedDiscount = pendingOrder?.discount ?? 0;
+  const confirmedTip = pendingOrder?.tip ?? 0;
   const confirmedTotal = pendingOrder
     ? (() => {
         const discSub = Math.max(0, sub - confirmedDiscount);
-        return Math.round((discSub * (1 + TAX_RATE) + SERVICE_FEE) * 100) / 100;
+        return Math.round((discSub * (1 + TAX_RATE) + SERVICE_FEE + confirmedTip) * 100) / 100;
       })()
     : total;
 
@@ -309,11 +394,7 @@ export function CheckoutView() {
     if (items.length === 0 && step !== 'done' && !orderId) setView('menu');
   }, [items.length, step, orderId, setView]);
 
-  useEffect(() => {
-    if (session === null) setView('login');
-  }, [session, setView]);
-
-  if (!session?.user) {
+  if (sessionLoading) {
     return (
       <div className="flex min-h-screen items-center justify-center">
         <Loader2 className="h-10 w-10 animate-spin text-[#e8531a]" />
@@ -325,14 +406,20 @@ export function CheckoutView() {
     e.preventDefault();
     setStep('creating');
     try {
+      const body: Record<string, any> = {
+        items,
+        notes: delivery.notes || undefined,
+        promoCode: promoCode || undefined,
+        tip: tip > 0 ? tip : undefined,
+      };
+      if (!user) {
+        body.guestName = guestName.trim();
+        body.guestEmail = guestEmail.trim();
+      }
       const res = await fetch('/api/checkout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          items,
-          notes: delivery.notes || undefined,
-          promoCode: promoCode || undefined,
-        }),
+        body: JSON.stringify(body),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to start checkout');
@@ -342,6 +429,7 @@ export function CheckoutView() {
         clientSecret: data.session.clientSecret,
         stripeEnabled: data.stripeEnabled,
         discount: data.order.discount ?? 0,
+        tip: data.order.tip ?? 0,
       });
       setStep('form');
     } catch (err: any) {
@@ -381,6 +469,12 @@ export function CheckoutView() {
               <div className="flex justify-between">
                 <span className="text-[#888888]">Discount saved</span>
                 <span className="font-data font-bold text-green-400">-{formatPrice(orderData.discount)}</span>
+              </div>
+            )}
+            {orderData.tip > 0 && (
+              <div className="flex justify-between">
+                <span className="text-[#888888]">Tip included</span>
+                <span className="font-data text-[#f5f0e8]">{formatPrice(orderData.tip)}</span>
               </div>
             )}
             <div className="flex justify-between border-t border-white/10 pt-2">
@@ -458,22 +552,57 @@ export function CheckoutView() {
               {/* Contact + promo form (before order created) */}
               {!pendingOrder && (
                 <form onSubmit={handleCreateOrder}>
+                  {/* Guest CTA */}
+                  {!user && (
+                    <div className="mb-4 flex items-center justify-between rounded-lg border border-white/10 bg-[#0d0d0d] px-4 py-3 text-xs">
+                      <span className="text-[#888]">Have an account?</span>
+                      <button
+                        type="button"
+                        onClick={() => setView('login')}
+                        className="font-bold text-[#e8531a] hover:underline"
+                      >
+                        Sign in for faster checkout
+                      </button>
+                    </div>
+                  )}
+
                   <div className="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
                     <div>
                       <label className="mb-1 block text-xs font-semibold uppercase tracking-wider text-[#888888]">Name</label>
-                      <input
-                        value={session.user.name || ''}
-                        readOnly
-                        className="w-full rounded-lg border border-white/10 bg-[#0d0d0d] px-3 py-2.5 text-sm text-[#f5f0e8] outline-none"
-                      />
+                      {user ? (
+                        <input
+                          value={user.name || ''}
+                          readOnly
+                          className="w-full rounded-lg border border-white/10 bg-[#0d0d0d] px-3 py-2.5 text-sm text-[#f5f0e8] outline-none"
+                        />
+                      ) : (
+                        <input
+                          required
+                          placeholder="Your name"
+                          value={guestName}
+                          onChange={(e) => setGuestName(e.target.value)}
+                          className="w-full rounded-lg border border-white/10 bg-[#0d0d0d] px-3 py-2.5 text-sm text-[#f5f0e8] outline-none transition-colors focus:border-[#e8531a]"
+                        />
+                      )}
                     </div>
                     <div>
                       <label className="mb-1 block text-xs font-semibold uppercase tracking-wider text-[#888888]">Email</label>
-                      <input
-                        value={session.user.email || ''}
-                        readOnly
-                        className="w-full rounded-lg border border-white/10 bg-[#0d0d0d] px-3 py-2.5 text-sm text-[#f5f0e8] outline-none"
-                      />
+                      {user ? (
+                        <input
+                          value={user.email || ''}
+                          readOnly
+                          className="w-full rounded-lg border border-white/10 bg-[#0d0d0d] px-3 py-2.5 text-sm text-[#f5f0e8] outline-none"
+                        />
+                      ) : (
+                        <input
+                          required
+                          type="email"
+                          placeholder="your@email.com"
+                          value={guestEmail}
+                          onChange={(e) => setGuestEmail(e.target.value)}
+                          className="w-full rounded-lg border border-white/10 bg-[#0d0d0d] px-3 py-2.5 text-sm text-[#f5f0e8] outline-none transition-colors focus:border-[#e8531a]"
+                        />
+                      )}
                     </div>
                     <div>
                       <label className="mb-1 block text-xs font-semibold uppercase tracking-wider text-[#888888]">Phone</label>
@@ -516,7 +645,7 @@ export function CheckoutView() {
                   </div>
 
                   {/* Promo code */}
-                  <div className="mb-5">
+                  <div className="mb-4">
                     <PromoField
                       appliedCode={promoCode}
                       onApply={(code, label) => { setPromoCode(code); setPromoLabel(label); }}
@@ -525,6 +654,11 @@ export function CheckoutView() {
                     {promoLabel && promoCode && (
                       <p className="mt-1.5 text-xs text-green-400">{promoLabel} — discount applied at checkout</p>
                     )}
+                  </div>
+
+                  {/* Tip */}
+                  <div className="mb-5">
+                    <TipSelector sub={sub} tip={tip} setTip={setTip} />
                   </div>
 
                   <div className="mb-6 border-t border-white/10" />
@@ -619,7 +753,7 @@ export function CheckoutView() {
                   </div>
                 )}
                 <div className="flex justify-between text-[#888888]">
-                  <span>Tax (8%)</span>
+                  <span>Tax ({Math.round(TAX_RATE * 100)}%)</span>
                   <span className="font-data text-[#f5f0e8]">
                     {formatPrice(Math.round(Math.max(0, sub - confirmedDiscount) * TAX_RATE * 100) / 100)}
                   </span>
@@ -628,6 +762,14 @@ export function CheckoutView() {
                   <span>Service fee</span>
                   <span className="font-data text-[#f5f0e8]">{formatPrice(fee)}</span>
                 </div>
+                {(pendingOrder ? confirmedTip : tip) > 0 && (
+                  <div className="flex justify-between text-[#888888]">
+                    <span>Tip</span>
+                    <span className="font-data text-[#f5f0e8]">
+                      {formatPrice(pendingOrder ? confirmedTip : tip)}
+                    </span>
+                  </div>
+                )}
                 <div className="mt-2 flex justify-between border-t border-white/10 pt-2">
                   <span className="font-display text-lg tracking-wider text-[#f5f0e8]">TOTAL</span>
                   <span className="font-data text-lg font-bold text-[#e8531a]">{formatPrice(displayTotal)}</span>

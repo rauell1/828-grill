@@ -165,6 +165,8 @@ Schema bootstrapped inline with `CREATE TABLE IF NOT EXISTS`. No migration runne
 | `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` | Optional | Stripe — mock checkout if absent |
 | `STRIPE_SECRET_KEY` | Optional | Stripe |
 | `STRIPE_WEBHOOK_SECRET` | Optional | Stripe webhook verification |
+| `TAX_RATE` | Optional | Tax rate as decimal (default `0.08` = 8%) — server-side |
+| `NEXT_PUBLIC_TAX_RATE` | Optional | Same rate exposed to client for display (default `0.08`) |
 
 ---
 
@@ -177,8 +179,9 @@ Schema bootstrapped inline with `CREATE TABLE IF NOT EXISTS`. No migration runne
 - Promo codes: DB-backed, admin-managed, masked checkout input
 - Reorder from account history
 - Post-order feedback (food + service ratings)
+- Order status emails (preparing / ready / delivered / cancelled) via Resend
 - Admin live KDS board (grouped by status, one-tap advance, auto-refresh)
-- Admin menu CRUD with Cloudinary image upload
+- Admin menu CRUD with Cloudinary image upload + stock count management
 - Admin promo code management (create, activate, pause, disable, delete)
 - Admin analytics (revenue, 30-day trend, top items, category split, top customers)
 - Admin customer directory with metrics
@@ -187,14 +190,44 @@ Schema bootstrapped inline with `CREATE TABLE IF NOT EXISTS`. No migration runne
 - Email verification on registration
 - Cookie consent banner
 - Restaurant hours display + open/closed status
+- Tip option at checkout (15% / 18% / 20% / custom)
+- Guest checkout (no account required — name + email collected)
+- Configurable tax rate via environment variables
+- Inventory stock counts (admin-set per item; "Only N left" badge; auto-hidden at 0)
 
 ### Not Yet Implemented
-- Order-ready / delivered email notifications to customers
 - Loyalty points / rewards system
 - Item customization (modifiers, add-ons, substitutions)
-- Guest / anonymous checkout (login required today)
 - Scheduled / pre-orders ("pickup at 6pm")
-- Tip option at checkout
 - SMS notifications
 - Admin activity audit log
-- Inventory stock counts per item
+
+---
+
+## Component files (auto-generated — do not edit this section)
+
+<!-- AUTO:components -->
+- `about-section.tsx`
+- `account-view.tsx`
+- `admin-analytics.tsx`
+- `admin-live-orders.tsx`
+- `admin-orders.tsx`
+- `admin-view.tsx`
+- `auth-view.tsx`
+- `cart-drawer.tsx`
+- `checkout-view.tsx`
+- `cookie-consent.tsx`
+- `cta-section.tsx`
+- `featured-section.tsx`
+- `footer.tsx`
+- `header.tsx`
+- `hero.tsx`
+- `image-fallback.tsx`
+- `item-detail-modal.tsx`
+- `marquee.tsx`
+- `menu-card.tsx`
+- `menu-section.tsx`
+- `newsletter-section.tsx`
+- `order-confirmation-view.tsx`
+- `reveal.tsx`
+<!-- /AUTO:components -->

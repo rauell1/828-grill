@@ -75,3 +75,12 @@ If a bad env var causes issues:
 1. Vercel dashboard → 828-grill → Settings → Environment Variables
 2. Edit or delete the problematic variable
 3. Trigger a redeploy: push an empty commit or click **Redeploy** in the Deployments tab
+
+
+## Deployment Snapshots (auto-updated)
+
+<!-- AUTO:snapshots -->
+| Commit | Date (UTC) | Description | Files changed |
+|--------|------------|-------------|---------------|
+| `cb3778b` | 2026-06-23 19:07 UTC | docs: update README, SITEMAP, CODEBASE to reflect full featu | README.md, docs/CODEBASE.md, docs/SITEMAP.md |
+<!-- /AUTO:snapshots -->

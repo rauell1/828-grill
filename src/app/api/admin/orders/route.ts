@@ -32,7 +32,7 @@ export async function GET(req: Request) {
           'quantity', oi.quantity
         ) ORDER BY oi.id) AS items
       FROM "Order" o
-      JOIN "User" u ON u.id = o."userId"
+      LEFT JOIN "User" u ON u.id = o."userId"
       JOIN "OrderItem" oi ON oi."orderId" = o.id
       JOIN "MenuItem" m ON m.id = oi."menuItemId"
       WHERE o.status = ANY(${ACTIVE})
@@ -49,12 +49,12 @@ export async function GET(req: Request) {
       o.status,
       o."stripeId",
       o."createdAt",
-      u.name   AS "customerName",
-      u.email  AS "customerEmail",
+      COALESCE(u.name,  o."guestName",  'Guest') AS "customerName",
+      COALESCE(u.email, o."guestEmail", '')       AS "customerEmail",
       COUNT(oi.id)::int             AS "itemCount",
       SUM(oi.quantity)::int         AS "totalUnits"
     FROM "Order" o
-    JOIN "User" u ON u.id = o."userId"
+    LEFT JOIN "User" u ON u.id = o."userId"
     LEFT JOIN "OrderItem" oi ON oi."orderId" = o.id
     WHERE ${status ? sql`o.status = ${status}` : sql`TRUE`}
     GROUP BY o.id, u.name, u.email

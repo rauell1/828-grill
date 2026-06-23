@@ -112,3 +112,43 @@ Activated when `view = 'admin'` — available only to emails listed in `ADMIN_EM
 | `"NewsletterSubscriber"` | Public (non-account) email signups |
 | `"NewsletterCampaign"` | Sent campaign log — subject, sentAt, recipientCount |
 | `"PromoCode"` | Discount codes — code, discountType, discountValue, status, usedCount, maxUses, expiresAt |
+
+---
+
+## All API routes (auto-generated — do not edit this section)
+
+<!-- AUTO:api-routes -->
+| Method | Route |
+|--------|-------|
+| GET | `/api/admin/analytics` |
+| GET | `/api/admin/check` |
+| GET | `/api/admin/customers` |
+| GET | `/api/admin/feedback` |
+| GET/POST | `/api/admin/menu` |
+| PUT/DELETE | `/api/admin/menu/[id]` |
+| GET/POST | `/api/admin/newsletter` |
+| GET | `/api/admin/orders` |
+| GET/PUT | `/api/admin/orders/[id]` |
+| GET/POST | `/api/admin/promo` |
+| PUT/DELETE | `/api/admin/promo/[id]` |
+| GET/POST | `/api/auth/[...path]` |
+| POST | `/api/auth/login` |
+| POST | `/api/auth/logout` |
+| POST | `/api/auth/register` |
+| POST | `/api/auth/resend-verification` |
+| GET | `/api/auth/session` |
+| GET | `/api/auth/verify` |
+| POST | `/api/checkout` |
+| POST | `/api/checkout/confirm` |
+| GET/POST | `/api/feedback` |
+| GET | `/api/hours` |
+| GET | `/api/menu` |
+| POST | `/api/newsletter/subscribe` |
+| GET | `/api/newsletter/unsubscribe` |
+| GET | `/api/orders` |
+| GET | `/api/orders/[id]` |
+| GET | `/api/promo` |
+| POST | `/api/upload` |
+| GET/PUT | `/api/user` |
+| POST | `/api/webhooks/stripe` |
+<!-- /AUTO:api-routes -->

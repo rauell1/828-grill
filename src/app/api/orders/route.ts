@@ -26,6 +26,7 @@ export async function GET() {
     WHERE o."userId" = ${userId}
     GROUP BY o.id
     ORDER BY o."createdAt" DESC
+    LIMIT 100
   `;
 
   return NextResponse.json({ orders });

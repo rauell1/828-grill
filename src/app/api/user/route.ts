@@ -8,7 +8,7 @@ export async function GET() {
 
   const sql = getSql();
   const users = await sql`
-    SELECT id, name, email, phone, address, "createdAt"
+    SELECT id, name, email, phone, address, "createdAt", "emailVerified"
     FROM "User" WHERE email = ${session.user.email} LIMIT 1
   `;
   if (!users.length) return NextResponse.json({ error: 'User not found' }, { status: 404 });

@@ -4,6 +4,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { getSql } from '@/lib/db';
 import { signToken, COOKIE_NAME, MAX_AGE } from '@/lib/session';
 import { checkRateLimit } from '@/lib/rate-limit';
+import { sendVerificationEmail } from '@/lib/email';
 
 const MAX_NAME = 100;
 const MAX_PHONE = 30;
@@ -39,6 +40,13 @@ export async function POST(req: Request) {
   }
 
   const sql = getSql();
+
+  // Lazy migration — add email verification columns for existing tables
+  await Promise.all([
+    sql`ALTER TABLE "User" ADD COLUMN IF NOT EXISTS "emailVerified" BOOLEAN NOT NULL DEFAULT true`.catch(() => {}),
+    sql`ALTER TABLE "User" ADD COLUMN IF NOT EXISTS "verifyToken" TEXT`.catch(() => {}),
+  ]);
+
   const normalEmail = email.toLowerCase().trim();
 
   const existing = await sql`SELECT id FROM "User" WHERE email = ${normalEmail} LIMIT 1`;
@@ -52,9 +60,10 @@ export async function POST(req: Request) {
 
   const hashed = await bcrypt.hash(password, 10);
   const id = uuidv4();
+  const verifyToken = uuidv4();
 
   const rows = await sql`
-    INSERT INTO "User" (id, name, email, password, phone, address, "createdAt", "updatedAt")
+    INSERT INTO "User" (id, name, email, password, phone, address, "emailVerified", "verifyToken", "createdAt", "updatedAt")
     VALUES (
       ${id},
       ${name.trim()},
@@ -62,16 +71,19 @@ export async function POST(req: Request) {
       ${hashed},
       ${phone?.trim().slice(0, MAX_PHONE) || null},
       ${address?.trim().slice(0, MAX_ADDRESS) || null},
+      false,
+      ${verifyToken},
       NOW(), NOW()
     )
     RETURNING id, name, email
   `;
 
   if (newsletterSubscribed) {
-    try {
-      await sql`UPDATE "User" SET "newsletterSubscribed" = true WHERE id = ${id}`;
-    } catch { /* column not yet migrated */ }
+    await sql`UPDATE "User" SET "newsletterSubscribed" = true WHERE id = ${id}`.catch(() => {});
   }
+
+  // Send verification email non-blocking
+  sendVerificationEmail(normalEmail, name.trim(), verifyToken);
 
   const user = rows[0];
   const token = signToken(user.id);

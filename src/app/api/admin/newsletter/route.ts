@@ -77,11 +77,11 @@ export async function POST(req: Request) {
     sql`SELECT name, email FROM "NewsletterSubscriber"`,
   ]);
   const seen2 = new Set<string>();
-  const subscribers = [...regSubs2, ...pubSubs2].filter((s: { email: string }) => {
+  const subscribers = ([...regSubs2, ...pubSubs2] as { name: string; email: string }[]).filter((s) => {
     if (seen2.has(s.email)) return false;
     seen2.add(s.email);
     return true;
-  }) as { name: string; email: string }[];
+  });
 
   if (!subscribers.length) {
     return NextResponse.json({ error: 'No subscribers yet' }, { status: 400 });

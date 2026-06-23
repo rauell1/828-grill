@@ -5,7 +5,7 @@ import { authClient } from '@/lib/auth/client';
 import { useUI } from '@/store/ui';
 import { useToast } from '@/hooks/use-toast';
 import { formatPrice, shortId } from '@/lib/format';
-import { User, Package, LogOut, Save, Loader2, Mail, Phone, MapPin, Receipt, ArrowLeft } from 'lucide-react';
+import { User, Package, LogOut, Save, Loader2, Mail, Phone, MapPin, Receipt, ArrowLeft, ShieldAlert } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface OrderRow {
@@ -28,6 +28,7 @@ export function AccountView() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [editForm, setEditForm] = useState({ name: '', phone: '', address: '' });
+  const [resending, setResending] = useState(false);
 
   useEffect(() => {
     if (status === 'unauthenticated') {
@@ -85,6 +86,19 @@ export function AccountView() {
     }
   };
 
+  const handleResendVerification = async () => {
+    setResending(true);
+    try {
+      const res = await fetch('/api/auth/resend-verification', { method: 'POST' });
+      if (res.ok) toast.success('Verification email sent — check your inbox');
+      else toast.error('Failed to send email');
+    } catch {
+      toast.error('Network error');
+    } finally {
+      setResending(false);
+    }
+  };
+
   const handleSignOut = async () => {
     await authClient.signOut();
     legacyToast({ title: 'Signed out', description: 'See you soon!' });
@@ -111,6 +125,27 @@ export function AccountView() {
         >
           <ArrowLeft className="h-4 w-4" /> Back home
         </button>
+
+        {/* Email verification banner */}
+        {profile && profile.emailVerified === false && (
+          <div className="mb-6 flex flex-col gap-3 rounded-xl border border-yellow-500/30 bg-yellow-500/8 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-start gap-3">
+              <ShieldAlert className="mt-0.5 h-5 w-5 shrink-0 text-yellow-400" />
+              <div>
+                <p className="text-sm font-bold text-yellow-300">Email not verified</p>
+                <p className="text-xs text-yellow-400/80">Check your inbox for a verification link, or request a new one.</p>
+              </div>
+            </div>
+            <button
+              onClick={handleResendVerification}
+              disabled={resending}
+              className="flex shrink-0 items-center gap-2 rounded-lg border border-yellow-500/40 px-4 py-2 text-xs font-bold uppercase tracking-wider text-yellow-400 transition hover:bg-yellow-500/10 disabled:opacity-50"
+            >
+              {resending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Mail className="h-3.5 w-3.5" />}
+              {resending ? 'Sending…' : 'Resend email'}
+            </button>
+          </div>
+        )}
 
         {/* Header */}
         <div className="flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-center">

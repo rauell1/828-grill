@@ -131,19 +131,37 @@ export function AdminView() {
   };
   const closePanel = () => { setPanelOpen(false); setEditId(null); };
 
-  // ── Image upload ───────────────────────────────────────────────────────
+  // ── Image upload → Cloudinary (client-side, free tier) ───────────────
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+
+    const cloudName = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME;
+    const preset   = process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET;
+
+    if (!cloudName || !preset) {
+      showToast('Cloudinary not configured — add NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME and NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET to Vercel env vars', 'err');
+      return;
+    }
+    if (file.size > 10 * 1024 * 1024) {
+      showToast('File must be under 10 MB', 'err');
+      return;
+    }
+
     setUploading(true);
     setImgPreviewError(false);
     try {
       const fd = new FormData();
       fd.append('file', file);
-      const res = await fetch('/api/upload', { method: 'POST', body: fd });
+      fd.append('upload_preset', preset);
+
+      const res = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/image/upload`, {
+        method: 'POST',
+        body: fd,
+      });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? 'Upload failed');
-      setForm((f) => ({ ...f, imageUrl: data.url }));
+      if (!res.ok) throw new Error(data.error?.message ?? 'Upload failed');
+      setForm((f) => ({ ...f, imageUrl: data.secure_url }));
       showToast('Image uploaded');
     } catch (err: any) {
       showToast(err.message ?? 'Upload failed', 'err');

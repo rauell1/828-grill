@@ -417,7 +417,7 @@ export function AdminView() {
         </div>
 
         {/* Tab nav */}
-        <div className="mx-auto flex max-w-screen-xl gap-1 px-5 pb-0">
+        <div className="mx-auto flex max-w-screen-xl gap-1 px-5 pb-0 overflow-x-auto whitespace-nowrap scrollbar-none flex-nowrap">
           {([
             { key: 'live', icon: Clock, label: 'Live' },
             { key: 'menu', icon: LayoutGrid, label: 'Menu' },
@@ -432,7 +432,7 @@ export function AdminView() {
               key={key}
               onClick={() => setTab(key)}
               className={cn(
-                'flex items-center gap-2 border-b-2 px-4 py-2.5 text-sm font-bold uppercase tracking-wider transition-colors',
+                'flex shrink-0 items-center gap-2 border-b-2 px-4 py-2.5 text-sm font-bold uppercase tracking-wider transition-colors',
                 tab === key
                   ? 'border-[#e8531a] text-[#e8531a]'
                   : 'border-transparent text-[#555] hover:text-[#888]'
@@ -506,7 +506,8 @@ export function AdminView() {
               </div>
             ) : (
               <div className="overflow-hidden rounded-xl border border-white/10">
-                <table className="w-full border-collapse text-sm">
+                <div className="overflow-x-auto">
+                  <table className="w-full border-collapse text-sm">
                   <thead>
                     <tr className="border-b border-white/10 bg-[#141414]">
                       <th className="px-4 py-3 text-left font-mono text-[10px] uppercase tracking-widest text-[#555]">Item</th>
@@ -600,6 +601,7 @@ export function AdminView() {
                     ))}
                   </tbody>
                 </table>
+                </div>
               </div>
             )}
           </>

@@ -23,8 +23,8 @@ export async function GET(req: Request) {
         o.status,
         o."createdAt",
         o.notes,
-        u.name   AS "customerName",
-        u.email  AS "customerEmail",
+        COALESCE(u.name,  o."guestName",  'Guest') AS "customerName",
+        COALESCE(u.email, o."guestEmail", '')       AS "customerEmail",
         u.phone  AS "customerPhone",
         SUM(oi.quantity)::int AS "totalUnits",
         json_agg(json_build_object(

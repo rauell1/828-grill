@@ -1,5 +1,3 @@
-// 828 Grill — Prisma schema (PostgreSQL / Neon)
-
 generator client {
   provider        = "prisma-client-js"
   previewFeatures = ["driverAdapters"]
@@ -12,15 +10,18 @@ datasource db {
 }
 
 model User {
-  id        String   @id @default(cuid())
-  name      String
-  email     String   @unique
-  password  String
-  phone     String?
-  address   String?
-  orders    Order[]
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id                   String   @id @default(cuid())
+  name                 String
+  email                String   @unique
+  password             String
+  phone                String?
+  address              String?
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+  newsletterSubscribed Boolean  @default(false)
+  emailVerified        Boolean  @default(true)
+  verifyToken          String?
+  orders               Order[]
 }
 
 model MenuItem {
@@ -32,6 +33,8 @@ model MenuItem {
   imageUrl    String
   featured    Boolean     @default(false)
   available   Boolean     @default(true)
+  allergens   String?
+  stockCount  Int?
   orderItems  OrderItem[]
 
   @@index([category])
@@ -39,14 +42,21 @@ model MenuItem {
 }
 
 model Order {
-  id        String      @id @default(cuid())
-  user      User        @relation(fields: [userId], references: [id])
-  userId    String
-  items     OrderItem[]
-  total     Float
-  status    String      @default("pending")
-  stripeId  String?
-  createdAt DateTime    @default(now())
+  id          String      @id @default(cuid())
+  userId      String
+  total       Float
+  status      String      @default("pending")
+  stripeId    String?
+  createdAt   DateTime    @default(now())
+  notes       String?
+  preparingAt DateTime?   @db.Timestamp(6)
+  readyAt     DateTime?   @db.Timestamp(6)
+  deliveredAt DateTime?   @db.Timestamp(6)
+  cancelledAt DateTime?   @db.Timestamp(6)
+  discount    Float       @default(0)
+  promoCode   String?
+  user        User        @relation(fields: [userId], references: [id])
+  items       OrderItem[]
 
   @@index([userId])
   @@index([status])
@@ -54,13 +64,52 @@ model Order {
 
 model OrderItem {
   id         String   @id @default(cuid())
-  order      Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
   orderId    String
-  menuItem   MenuItem @relation(fields: [menuItemId], references: [id])
   menuItemId String
   quantity   Int
   unitPrice  Float
+  menuItem   MenuItem @relation(fields: [menuItemId], references: [id])
+  order      Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
 
   @@index([orderId])
   @@index([menuItemId])
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model Feedback {
+  id            String   @id
+  orderId       String   @unique
+  userId        String
+  foodRating    Int
+  serviceRating Int
+  comment       String?
+  createdAt     DateTime @default(now()) @db.Timestamp(6)
+}
+
+model NewsletterCampaign {
+  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  subject        String
+  body           String
+  sentAt         DateTime @default(now()) @db.Timestamptz(6)
+  recipientCount Int      @default(0)
+}
+
+model NewsletterSubscriber {
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  email        String   @unique
+  name         String?
+  subscribedAt DateTime @default(now()) @db.Timestamptz(6)
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model PromoCode {
+  id            String    @id
+  code          String    @unique
+  discountType  String
+  discountValue Float
+  status        String    @default("active")
+  usedCount     Int       @default(0)
+  maxUses       Int?
+  expiresAt     DateTime? @db.Timestamptz(6)
+  createdAt     DateTime  @default(now()) @db.Timestamptz(6)
 }

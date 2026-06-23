@@ -50,7 +50,8 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
     sql`
       SELECT o.id, o.total::float, o.status, o."stripeId", o."createdAt", o.notes,
              o."preparingAt", o."readyAt", o."deliveredAt", o."cancelledAt",
-             u.name AS "customerName", u.email AS "customerEmail",
+             COALESCE(u.name, o."guestName", 'Guest') AS "customerName",
+             COALESCE(u.email, o."guestEmail", '') AS "customerEmail",
              u.phone AS "customerPhone", u.address AS "customerAddress"
       FROM "Order" o LEFT JOIN "User" u ON u.id = o."userId"
       WHERE o.id = ${id}

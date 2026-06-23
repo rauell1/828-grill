@@ -164,6 +164,14 @@
   border-radius: 4px;
 }
 
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
+}
+.scrollbar-none {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
 /* Ember glow utility */
 .ember-glow {
   box-shadow: 0 0 40px -8px rgba(232, 83, 26, 0.45);

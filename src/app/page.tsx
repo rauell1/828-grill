@@ -47,7 +47,7 @@ export default function Home() {
 
   return (
     <div className="flex min-h-screen flex-col bg-[#0d0d0d]">
-      <Header />
+      {view !== 'admin' && <Header />}
       <CartDrawer />
 
       <main className="flex-1">

@@ -277,6 +277,23 @@
   100%    { transform: translateX(115%); }
 }
 
+/* Ember gradient text utility */
+.ember-gradient {
+  background: linear-gradient(90deg, #ff7a2f 0%, #e8531a 50%, #b83010 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* Scroll indicator bounce */
+@keyframes scroll-bounce {
+  0%, 100% { transform: translateY(0); opacity: 0.7; }
+  50% { transform: translateY(8px); opacity: 1; }
+}
+.scroll-bounce {
+  animation: scroll-bounce 2s ease-in-out infinite;
+}
+
 /* ■■ Reduced motion respect ■■ */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {

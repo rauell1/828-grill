@@ -1,5 +1,6 @@
 'use client';
 
+import Image from 'next/image';
 import { Reveal } from './reveal';
 import { useUI } from '@/store/ui';
 import { ArrowRight } from 'lucide-react';
@@ -7,9 +8,24 @@ import { ArrowRight } from 'lucide-react';
 export function CTASection() {
   const setView = useUI((s) => s.setView);
   return (
-    <section className="px-4 py-24 sm:px-6 lg:px-8">
-      <Reveal className="mx-auto flex max-w-7xl flex-col items-start justify-between gap-8 sm:flex-row sm:items-end">
+    <section className="relative overflow-hidden py-32 px-4 sm:px-6 lg:px-8">
+      {/* Full-bleed background image */}
+      <div className="absolute inset-0">
+        <Image
+          src="/menu/hero.jpg"
+          alt="Grill fire background"
+          fill
+          sizes="100vw"
+          className="object-cover opacity-25"
+        />
+        <div className="absolute inset-0 bg-gradient-to-r from-[#0d0d0d] via-[#0d0d0d]/80 to-[#0d0d0d]/60" />
+      </div>
+
+      <Reveal className="relative z-10 mx-auto flex max-w-7xl flex-col items-start justify-between gap-8 sm:flex-row sm:items-end">
         <div className="max-w-3xl">
+          <p className="mb-3 font-mono text-sm uppercase tracking-[0.32em] text-[#E8531A]">
+            Don&apos;t wait
+          </p>
           <h2 className="font-display text-[4.5rem] leading-none text-[#F5F0E8] sm:text-[6rem] lg:text-[7rem]">
             Ready for fire?
           </h2>

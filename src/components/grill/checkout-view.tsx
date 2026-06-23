@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useCart } from '@/store/cart';
 import { useUI } from '@/store/ui';
-import { useSession } from 'next-auth/react';
+import { authClient } from '@/lib/auth/client';
 import { formatPrice } from '@/lib/format';
 import { ArrowLeft, Lock, CreditCard, Loader2, CheckCircle2, ShieldCheck } from 'lucide-react';
 import { toast } from 'sonner';
@@ -15,11 +15,12 @@ const SERVICE_FEE = 1.5;
 export function CheckoutView() {
   const { items, subtotal, clear } = useCart();
   const { setView, setOrderId, orderId } = useUI();
-  const { data: session } = useSession();
+  const { data: session } = authClient.useSession();
 
   const [step, setStep] = useState<'form' | 'processing' | 'done'>('form');
   const [orderData, setOrderData] = useState<any>(null);
   const [card, setCard] = useState({ number: '', exp: '', cvc: '', name: '' });
+  const [delivery, setDelivery] = useState({ phone: '', address: '' });
 
   const sub = subtotal();
   const tax = Math.round(sub * TAX_RATE * 100) / 100;
@@ -205,8 +206,8 @@ export function CheckoutView() {
                 </h2>
               </div>
 
-              {/* Contact info (pre-filled) */}
-              <div className="mb-6 grid grid-cols-1 gap-3 sm:grid-cols-2">
+              {/* Contact info */}
+              <div className="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <div>
                   <label className="mb-1 block text-xs font-semibold uppercase tracking-wider text-[#888888]">
                     Name
@@ -227,7 +228,34 @@ export function CheckoutView() {
                     className="w-full rounded-lg border border-white/10 bg-[#0d0d0d] px-3 py-2.5 text-sm text-[#f5f0e8] outline-none"
                   />
                 </div>
+                <div>
+                  <label className="mb-1 block text-xs font-semibold uppercase tracking-wider text-[#888888]">
+                    Phone
+                  </label>
+                  <input
+                    type="tel"
+                    inputMode="tel"
+                    placeholder="+1 (555) 000-0000"
+                    value={delivery.phone}
+                    onChange={(e) => setDelivery({ ...delivery, phone: e.target.value })}
+                    className="w-full rounded-lg border border-white/10 bg-[#0d0d0d] px-3 py-2.5 text-sm text-[#f5f0e8] outline-none transition-colors focus:border-[#e8531a]"
+                  />
+                </div>
+                <div>
+                  <label className="mb-1 block text-xs font-semibold uppercase tracking-wider text-[#888888]">
+                    Pickup / Delivery Address
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="123 Main St, Asheville, NC"
+                    value={delivery.address}
+                    onChange={(e) => setDelivery({ ...delivery, address: e.target.value })}
+                    className="w-full rounded-lg border border-white/10 bg-[#0d0d0d] px-3 py-2.5 text-sm text-[#f5f0e8] outline-none transition-colors focus:border-[#e8531a]"
+                  />
+                </div>
               </div>
+
+              <div className="mb-6 border-t border-white/10" />
 
               {/* Card details */}
               <div className="space-y-3">

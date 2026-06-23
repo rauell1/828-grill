@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { ShoppingBag, Menu as MenuIcon, X, Flame } from 'lucide-react';
 import { useCart } from '@/store/cart';
 import { useUI, View } from '@/store/ui';
-import { useSession, signOut } from 'next-auth/react';
+import { authClient } from '@/lib/auth/client';
 import { cn } from '@/lib/utils';
 
 const NAV: { label: string; view: View }[] = [
@@ -15,7 +15,8 @@ const NAV: { label: string; view: View }[] = [
 export function Header() {
   const cartCount = useCart((s) => s.count());
   const { view, setView, setCartOpen } = useUI();
-  const { data: session, status } = useSession();
+  const { data: session, isPending } = authClient.useSession();
+  const status = isPending ? 'loading' : session ? 'authenticated' : 'unauthenticated';
   const [scrolled, setScrolled] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
 

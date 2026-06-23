@@ -1,13 +1,17 @@
-import { PrismaClient } from '@prisma/client'
+import { neon, type NeonQueryFunction } from '@neondatabase/serverless';
 
-const globalForPrisma = globalThis as unknown as {
-  prisma: PrismaClient | undefined
+function buildSql(): NeonQueryFunction<false, false> {
+  const raw = (process.env.DATABASE_URL ?? '')
+    .replace(/^﻿/, '')   // strip BOM
+    .trim()
+    .replace(/^["']|["']$/g, ''); // strip stray quotes
+  const base = raw.includes('?') ? raw.split('?')[0] : raw;
+  return neon(base);
 }
 
-export const db =
-  globalForPrisma.prisma ??
-  new PrismaClient({
-    log: ['query'],
-  })
+let _sql: NeonQueryFunction<false, false> | undefined;
 
-if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = db
+export function getSql(): NeonQueryFunction<false, false> {
+  if (!_sql) _sql = buildSql();
+  return _sql;
+}

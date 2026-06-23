@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useSession, signOut } from 'next-auth/react';
+import { authClient } from '@/lib/auth/client';
 import { useUI } from '@/store/ui';
 import { useToast } from '@/hooks/use-toast';
 import { formatPrice, shortId } from '@/lib/format';
@@ -17,7 +17,9 @@ interface OrderRow {
 }
 
 export function AccountView() {
-  const { data: session, status } = useSession();
+  const { data: sessionData, isPending } = authClient.useSession();
+  const session = sessionData;
+  const status = isPending ? 'loading' : session ? 'authenticated' : 'unauthenticated';
   const { setView, setOrderId } = useUI();
   const { toast: legacyToast } = useToast();
 
@@ -84,7 +86,7 @@ export function AccountView() {
   };
 
   const handleSignOut = async () => {
-    await signOut({ redirect: false });
+    await authClient.signOut();
     legacyToast({ title: 'Signed out', description: 'See you soon!' });
     setView('home');
   };
@@ -98,6 +100,7 @@ export function AccountView() {
   }
 
   if (!session?.user) return null;
+  const user = session.user;
 
   return (
     <div className="min-h-screen px-4 pt-24 pb-16 sm:px-6 lg:px-8">
@@ -117,9 +120,9 @@ export function AccountView() {
             </div>
             <div>
               <h1 className="font-display text-4xl tracking-wide text-[#f5f0e8]">
-                {profile?.name || session.user.name}
+                {profile?.name || user.name}
               </h1>
-              <p className="text-sm text-[#888888]">{session.user.email}</p>
+              <p className="text-sm text-[#888888]">{user.email}</p>
             </div>
           </div>
           <button
@@ -152,7 +155,7 @@ export function AccountView() {
                   <Mail className="h-3 w-3" /> Email
                 </label>
                 <input
-                  value={session.user.email || ''}
+                  value={user.email || ''}
                   readOnly
                   className="w-full rounded-lg border border-white/10 bg-[#0d0d0d]/50 px-3 py-2.5 text-sm text-[#888888] outline-none"
                 />

@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useUI } from '@/store/ui';
-import { useSession } from 'next-auth/react';
+import { authClient } from '@/lib/auth/client';
 import { formatPrice, shortId } from '@/lib/format';
 import { ImageWithFallback } from './image-fallback';
 import { ArrowLeft, CheckCircle2, Loader2, Receipt, MapPin, Clock, Flame } from 'lucide-react';
@@ -23,7 +23,8 @@ interface Order {
 
 export function OrderConfirmationView() {
   const { orderId, setView } = useUI();
-  const { status: authStatus } = useSession();
+  const { data: authSession, isPending: authPending } = authClient.useSession();
+  const authStatus = authPending ? 'loading' : authSession ? 'authenticated' : 'unauthenticated';
   const [order, setOrder] = useState<Order | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);

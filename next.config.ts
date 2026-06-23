@@ -2,12 +2,17 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   output: "standalone",
-  /* config options here */
   typescript: {
     ignoreBuildErrors: true,
   },
   reactStrictMode: false,
   allowedDevOrigins: ["*.space-z.ai"],
+  images: {
+    remotePatterns: [
+      { protocol: 'https', hostname: 'images.pexels.com' },
+      { protocol: 'https', hostname: 'images.unsplash.com' },
+    ],
+  },
 };
 
 export default nextConfig;

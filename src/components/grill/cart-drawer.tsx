@@ -2,7 +2,7 @@
 
 import { useCart } from '@/store/cart';
 import { useUI } from '@/store/ui';
-import { useSession } from 'next-auth/react';
+import { authClient } from '@/lib/auth/client';
 import { X, Plus, Minus, Trash2, ShoppingBag, ArrowRight } from 'lucide-react';
 import { formatPrice } from '@/lib/format';
 import { useToast } from '@/hooks/use-toast';
@@ -14,7 +14,7 @@ const SERVICE_FEE = 1.5;
 export function CartDrawer() {
   const { items, setQty, remove, clear, subtotal } = useCart();
   const { cartOpen, setCartOpen, setView } = useUI();
-  const { data: session } = useSession();
+  const { data: session } = authClient.useSession();
   const { toast } = useToast();
 
   const sub = subtotal();

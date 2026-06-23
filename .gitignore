@@ -38,3 +38,5 @@ Thumbs.db
 # Custom / Temp
 upload/zip-extracted/
 tool-results/
+
+.vercel

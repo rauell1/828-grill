@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import Image from 'next/image';
+import { Star } from 'lucide-react';
 import { useCart } from '@/store/cart';
 import { useToast } from '@/hooks/use-toast';
 
@@ -55,6 +56,15 @@ export function MenuCard({ item }: { item: MenuItemData }) {
         <div className="absolute bottom-3 left-4 font-mono text-xs uppercase tracking-[0.26em] text-[#E8531A]">
           {item.category}
         </div>
+        {/* Popular badge */}
+        {item.popular && (
+          <div className="absolute right-3 top-3 flex items-center gap-1 rounded-full bg-[#E8531A] px-2.5 py-1">
+            <Star className="h-3 w-3 fill-white text-white" />
+            <span className="font-mono text-[10px] font-bold uppercase tracking-wider text-white">
+              Popular
+            </span>
+          </div>
+        )}
       </div>
 
       {/* Card body */}

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { signIn } from 'next-auth/react';
+import { authClient } from '@/lib/auth/client';
 import { useUI } from '@/store/ui';
 import { Flame, ArrowLeft, Mail, Lock, User, Phone, MapPin, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
@@ -28,13 +28,12 @@ export function AuthView() {
     e.preventDefault();
     setLoading(true);
     try {
-      const res = await signIn('credentials', {
+      const { error } = await authClient.signIn.email({
         email: form.email,
         password: form.password,
-        redirect: false,
       });
-      if (res?.error) {
-        toast.error(res.error);
+      if (error) {
+        toast.error(error.message || 'Sign in failed');
       } else {
         toast.success('Welcome back!');
         setView('account');
@@ -63,29 +62,17 @@ export function AuthView() {
 
     setLoading(true);
     try {
-      const res = await fetch('/api/register', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(form),
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        toast.error(data.error || 'Registration failed');
-        return;
-      }
-      // Auto sign-in after register
-      const signRes = await signIn('credentials', {
+      const { error } = await authClient.signUp.email({
         email: form.email,
         password: form.password,
-        redirect: false,
+        name: form.name,
       });
-      if (signRes?.error) {
-        toast.error('Account created. Please sign in.');
-        setMode('login');
-      } else {
-        toast.success('Account created! Welcome to 828 Grill.');
-        setView('account');
+      if (error) {
+        toast.error(error.message || 'Registration failed');
+        return;
       }
+      toast.success('Account created! Welcome to 828 Grill.');
+      setView('account');
     } catch (err) {
       toast.error('Registration failed. Please try again.');
     } finally {

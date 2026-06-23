@@ -54,6 +54,7 @@
     "@stripe/stripe-js": "^9.8.0",
     "@tanstack/react-query": "^5.82.0",
     "@tanstack/react-table": "^8.21.3",
+    "@vercel/analytics": "^2.0.1",
     "@vercel/blob": "^2.4.1",
     "bcryptjs": "^3.0.3",
     "c12": "^4.0.0-beta.5",

@@ -82,5 +82,7 @@ If a bad env var causes issues:
 <!-- AUTO:snapshots -->
 | Commit | Date (UTC) | Description | Files changed |
 |--------|------------|-------------|---------------|
+| `6a7038a` | 2026-06-23 19:08 UTC | feat: tip, guest checkout, inventory stock, tax env var + au | .github/workflows/update-docs.yml, docs/CODEBASE.md, docs/ROLLBACK.md, docs/SITEMAP.md, scripts/update-docs.js, src/app/api/admin/menu/[id]/route.ts, src/app/api/admin/menu/route.ts, src/app/api/admin/orders/[id]/route.ts |
+|--------|------------|-------------|---------------|
 | `cb3778b` | 2026-06-23 19:07 UTC | docs: update README, SITEMAP, CODEBASE to reflect full featu | README.md, docs/CODEBASE.md, docs/SITEMAP.md |
 <!-- /AUTO:snapshots -->

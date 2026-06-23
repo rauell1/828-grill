@@ -92,5 +92,12 @@ export const authClient = {
   async signOut() {
     await fetch('/api/auth/logout', { method: 'POST' });
     setGlobalSession(null);
+    // Clear cart so the next user on this browser doesn't see previous items
+    if (typeof window !== 'undefined') {
+      try {
+        const { useCart } = await import('@/store/cart');
+        useCart.getState().clear();
+      } catch { /* store not yet loaded */ }
+    }
   },
 };

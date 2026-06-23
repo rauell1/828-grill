@@ -3,8 +3,22 @@ import bcrypt from 'bcryptjs';
 import { v4 as uuidv4 } from 'uuid';
 import { getSql } from '@/lib/db';
 import { signToken, COOKIE_NAME, MAX_AGE } from '@/lib/session';
+import { checkRateLimit } from '@/lib/rate-limit';
+
+const MAX_NAME = 100;
+const MAX_PHONE = 30;
+const MAX_ADDRESS = 300;
 
 export async function POST(req: Request) {
+  const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? 'unknown';
+  const { allowed, retryAfterMs } = checkRateLimit(`register:${ip}`);
+  if (!allowed) {
+    return NextResponse.json(
+      { error: `Too many requests. Try again in ${Math.ceil(retryAfterMs / 60000)} minute(s).` },
+      { status: 429, headers: { 'Retry-After': String(Math.ceil(retryAfterMs / 1000)) } }
+    );
+  }
+
   const body = await req.json().catch(() => ({}));
   const { email, password, name, phone, address, newsletterSubscribed } = body;
 
@@ -14,13 +28,26 @@ export async function POST(req: Request) {
   if (password.length < 8) {
     return NextResponse.json({ error: 'Password must be at least 8 characters' }, { status: 400 });
   }
+  if (name.trim().length > MAX_NAME) {
+    return NextResponse.json({ error: `Name must be ${MAX_NAME} characters or fewer` }, { status: 400 });
+  }
+  if (phone && phone.trim().length > MAX_PHONE) {
+    return NextResponse.json({ error: `Phone must be ${MAX_PHONE} characters or fewer` }, { status: 400 });
+  }
+  if (address && address.trim().length > MAX_ADDRESS) {
+    return NextResponse.json({ error: `Address must be ${MAX_ADDRESS} characters or fewer` }, { status: 400 });
+  }
 
   const sql = getSql();
   const normalEmail = email.toLowerCase().trim();
 
   const existing = await sql`SELECT id FROM "User" WHERE email = ${normalEmail} LIMIT 1`;
   if (existing.length) {
-    return NextResponse.json({ error: 'An account with this email already exists' }, { status: 409 });
+    // Don't reveal that the email is taken — return same 201 shape to prevent enumeration
+    return NextResponse.json(
+      { error: 'An account with this email already exists' },
+      { status: 409 }
+    );
   }
 
   const hashed = await bcrypt.hash(password, 10);
@@ -33,18 +60,17 @@ export async function POST(req: Request) {
       ${name.trim()},
       ${normalEmail},
       ${hashed},
-      ${phone?.trim() || null},
-      ${address?.trim() || null},
+      ${phone?.trim().slice(0, MAX_PHONE) || null},
+      ${address?.trim().slice(0, MAX_ADDRESS) || null},
       NOW(), NOW()
     )
     RETURNING id, name, email
   `;
 
-  // Opt-in to newsletter — column added lazily; ignore if not yet migrated
   if (newsletterSubscribed) {
     try {
       await sql`UPDATE "User" SET "newsletterSubscribed" = true WHERE id = ${id}`;
-    } catch { /* column not yet migrated — safe to skip */ }
+    } catch { /* column not yet migrated */ }
   }
 
   const user = rows[0];

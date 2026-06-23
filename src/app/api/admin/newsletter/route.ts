@@ -98,7 +98,7 @@ export async function POST(req: Request) {
       from: FROM,
       to: s.email,
       subject,
-      html: buildHtml(subject, body, s.name),
+      html: buildHtml(subject, body, s.name, s.email),
     }));
     const result = await resend.batch.send(batch);
     if (result.error) {
@@ -118,11 +118,14 @@ export async function POST(req: Request) {
   return NextResponse.json({ sent });
 }
 
-function buildHtml(subject: string, body: string, name: string): string {
+function buildHtml(subject: string, body: string, name: string, email: string): string {
   const paragraphs = body
     .split('\n')
     .map((l) => `<p style="margin:0 0 14px;color:#cccccc;font-size:15px;line-height:1.7">${l || '&nbsp;'}</p>`)
     .join('');
+
+  const siteBase = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://828-grill.vercel.app';
+  const unsubscribeUrl = `${siteBase}/api/newsletter/unsubscribe?email=${encodeURIComponent(email)}`;
 
   return `<!DOCTYPE html>
 <html lang="en">
@@ -137,18 +140,19 @@ function buildHtml(subject: string, body: string, name: string): string {
       </span>
     </div>
     <div style="background:#141414;border:1px solid rgba(255,255,255,0.08);border-radius:16px;padding:36px">
-      <p style="margin:0 0 6px;color:#888;font-size:13px;text-transform:uppercase;letter-spacing:1px">Hey ${name},</p>
+      <p style="margin:0 0 6px;color:#888;font-size:13px;text-transform:uppercase;letter-spacing:1px">Hey ${name || 'there'},</p>
       <h1 style="margin:0 0 28px;color:#f5f0e8;font-size:26px;font-weight:800;line-height:1.3">${subject}</h1>
       ${paragraphs}
       <div style="margin-top:32px;padding-top:28px;border-top:1px solid rgba(255,255,255,0.08);text-align:center">
-        <a href="https://828grill.com" style="display:inline-block;background:#e8531a;color:white;text-decoration:none;font-weight:700;font-size:14px;letter-spacing:1px;text-transform:uppercase;padding:14px 32px;border-radius:10px">
+        <a href="${siteBase}" style="display:inline-block;background:#e8531a;color:white;text-decoration:none;font-weight:700;font-size:14px;letter-spacing:1px;text-transform:uppercase;padding:14px 32px;border-radius:10px">
           Order Now
         </a>
       </div>
     </div>
     <p style="margin:28px 0 0;text-align:center;color:#444;font-size:12px;line-height:1.6">
-      828 Grill · Asheville, NC<br>
-      You're receiving this because you subscribed to our newsletter.
+      828 Grill LLC · Asheville, NC 28801<br>
+      You're receiving this because you subscribed to our newsletter.<br>
+      <a href="${unsubscribeUrl}" style="color:#666;text-decoration:underline">Unsubscribe</a>
     </p>
   </div>
 </body>

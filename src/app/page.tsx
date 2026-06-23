@@ -8,6 +8,7 @@ import { Marquee } from '@/components/grill/marquee';
 import { FeaturedSection } from '@/components/grill/featured-section';
 import { AboutSection } from '@/components/grill/about-section';
 import { CTASection } from '@/components/grill/cta-section';
+import { NewsletterSection } from '@/components/grill/newsletter-section';
 import { MenuSection } from '@/components/grill/menu-section';
 import { Footer } from '@/components/grill/footer';
 import { CartDrawer } from '@/components/grill/cart-drawer';
@@ -66,6 +67,7 @@ export default function Home() {
             )}
             <AboutSection />
             <CTASection />
+            <NewsletterSection />
           </>
         )}
 

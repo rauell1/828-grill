@@ -23,10 +23,29 @@ export async function GET() {
   const sql = getSql();
   await ensureTables(sql);
 
-  const [subscribers, campaigns] = await Promise.all([
-    sql`SELECT id, name, email FROM "User" WHERE "newsletterSubscribed" = true ORDER BY name`,
+  // Ensure public subscriber table exists too
+  await sql`
+    CREATE TABLE IF NOT EXISTS "NewsletterSubscriber" (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      email TEXT NOT NULL UNIQUE,
+      name TEXT,
+      "subscribedAt" TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `;
+
+  const [regSubs, pubSubs, campaigns] = await Promise.all([
+    sql`SELECT id, name, email FROM "User" WHERE "newsletterSubscribed" = true`,
+    sql`SELECT id, name, email FROM "NewsletterSubscriber"`,
     sql`SELECT id, subject, "sentAt", "recipientCount" FROM "NewsletterCampaign" ORDER BY "sentAt" DESC LIMIT 30`,
   ]);
+
+  // Merge and deduplicate by email
+  const seen = new Set<string>();
+  const subscribers = [...regSubs, ...pubSubs].filter((s) => {
+    if (seen.has(s.email)) return false;
+    seen.add(s.email);
+    return true;
+  }).sort((a, b) => (a.name ?? a.email).localeCompare(b.name ?? b.email));
 
   return NextResponse.json({ subscribers, campaigns });
 }
@@ -50,9 +69,17 @@ export async function POST(req: Request) {
   const sql = getSql();
   await ensureTables(sql);
 
-  const subscribers = await sql<{ name: string; email: string }[]>`
-    SELECT name, email FROM "User" WHERE "newsletterSubscribed" = true
-  `;
+  // Merge registered + public subscribers, deduplicated by email
+  const [regSubs2, pubSubs2] = await Promise.all([
+    sql`SELECT name, email FROM "User" WHERE "newsletterSubscribed" = true`,
+    sql`SELECT name, email FROM "NewsletterSubscriber"`,
+  ]);
+  const seen2 = new Set<string>();
+  const subscribers = [...regSubs2, ...pubSubs2].filter((s: { email: string }) => {
+    if (seen2.has(s.email)) return false;
+    seen2.add(s.email);
+    return true;
+  }) as { name: string; email: string }[];
 
   if (!subscribers.length) {
     return NextResponse.json({ error: 'No subscribers yet' }, { status: 400 });

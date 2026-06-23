@@ -1,73 +1,114 @@
 # 828 Grill — Sitemap
 
-> Single-page application (SPA). All views render under `/` via Zustand `view` state. The only true URL is the root.
+Single-page application. All views render under `/` via Zustand `view` state. No client-side URL changes.
 
 ---
 
-## Frontend Views (`view` state in `useUI`)
+## Customer Views
 
-| View key | Rendered component | Auth required |
-|---|---|---|
-| `home` | Hero → Marquee → Featured → About → CTA → Newsletter | No |
-| `menu` | Full menu grid with category filter | No |
-| `checkout` | Cart review + payment form | **Yes** (redirects to login) |
-| `login` | Sign in form | No (redirects to account if already signed in) |
-| `register` | Create account form + newsletter opt-in | No |
-| `account` | Profile, order history, sign out | **Yes** |
-| `order` | Order confirmation / receipt | **Yes** |
-| `admin` | Admin CMS (Menu Items + Newsletter tabs) | **Admin only** |
+| View key | Component | Auth | Description |
+|----------|-----------|------|-------------|
+| `home` | Landing sections | No | Hero → Marquee → Featured → About → CTA → Newsletter → Footer |
+| `menu` | `MenuSection` | No | Full menu with category filter, item detail modals, sticky mobile cart bar |
+| `checkout` | `CheckoutView` | Yes | Delivery info → masked promo code → Stripe payment → confirmation |
+| `login` | `AuthView` | No | Email + password login |
+| `register` | `AuthView` | No | Registration with newsletter opt-in |
+| `account` | `AccountView` | Yes | Profile, order history with reorder, account settings |
+| `order` | `OrderConfirmationView` | Yes | Order status tracking |
+
+### Static routes (real URL)
+| Route | Description |
+|-------|-------------|
+| `/privacy` | Privacy policy |
+| `/terms` | Terms of service |
+
+---
+
+## Admin Views
+
+Activated when `view = 'admin'` — available only to emails listed in `ADMIN_EMAILS`.
+
+| Tab key | Description |
+|---------|-------------|
+| `live` | Real-time KDS board — one-tap status advance (Pending → Preparing → Ready), auto-refresh every 30s |
+| `menu` | CRUD for menu items — name, price, category, allergens, image (Cloudinary), availability, featured toggle |
+| `orders` | Full order history — expand for line items, customer info, notes; update status |
+| `promos` | Create / activate / pause / disable / delete promo codes (% or flat $, max uses, expiry) |
+| `customers` | All registered users with order count, LTV, avg food/service rating, contact info |
+| `feedback` | Customer reviews — avg ratings (food / service / overall), individual comments with order link |
+| `newsletter` | Compose & send campaigns via Resend; subscriber list; campaign history |
+| `analytics` | Revenue KPIs, 30-day trend chart, top/least popular items, category split, top customers by LTV |
 
 ---
 
 ## API Routes
 
 ### Public
+| Method | Route | Purpose |
+|--------|-------|---------|
+| GET | `/api/menu` | All available menu items |
+| GET | `/api/hours` | Restaurant hours + open/closed status |
+| GET | `/api/promo?code=X` | Validate promo code (returns discount type + value) |
+| POST | `/api/newsletter/subscribe` | Public newsletter signup |
+| POST | `/api/newsletter/unsubscribe` | Unsubscribe |
 
-| Method | Path | Purpose |
-|---|---|---|
-| `GET` | `/api/menu` | Fetch all available menu items |
-| `POST` | `/api/newsletter/subscribe` | Public newsletter sign-up (email only) |
-
-### Auth
-
-| Method | Path | Purpose |
-|---|---|---|
-| `POST` | `/api/auth/register` | Create account (name, email, password, phone?, address?, newsletterSubscribed?) |
-| `POST` | `/api/auth/login` | Sign in, sets `828-session` cookie |
-| `POST` | `/api/auth/logout` | Clear session cookie |
-| `GET` | `/api/auth/session` | Verify cookie → return current user |
+### Auth (unauthenticated endpoints)
+| Method | Route | Purpose |
+|--------|-------|---------|
+| POST | `/api/auth/register` | Create account + send verification email |
+| POST | `/api/auth/login` | Login → set `828-session` cookie |
+| POST | `/api/auth/logout` | Clear session cookie |
+| GET | `/api/auth/session` | Get current session user |
+| POST | `/api/auth/verify` | Verify email with token |
+| POST | `/api/auth/resend-verification` | Resend verification email |
 
 ### Authenticated
-
-| Method | Path | Purpose |
-|---|---|---|
-| `POST` | `/api/checkout` | Create order + mock payment session |
-| `POST` | `/api/checkout/confirm` | Confirm order → set status to `confirmed` |
-| `GET` | `/api/orders` | Fetch orders for logged-in user |
-| `GET` | `/api/orders/[id]` | Fetch single order detail |
-| `GET/PUT` | `/api/user` | Get / update user profile |
+| Method | Route | Purpose |
+|--------|-------|---------|
+| GET | `/api/user` | Get profile |
+| PUT | `/api/user` | Update name, phone, address, newsletter opt-in |
+| POST | `/api/checkout` | Create order + Stripe PaymentIntent |
+| POST | `/api/checkout/confirm` | Confirm payment |
+| GET | `/api/orders` | Order history (includes items, category) |
+| GET | `/api/orders/[id]` | Single order detail |
+| POST | `/api/feedback` | Submit food + service rating |
 
 ### Admin only
+| Method | Route | Purpose |
+|--------|-------|---------|
+| GET | `/api/admin/check` | Verify admin status |
+| GET | `/api/admin/menu` | All items including unavailable |
+| POST | `/api/admin/menu` | Create item |
+| PUT | `/api/admin/menu/[id]` | Edit item |
+| DELETE | `/api/admin/menu/[id]` | Delete item |
+| GET | `/api/admin/orders` | All orders (`?live=1` for active only with items inline) |
+| PUT | `/api/admin/orders/[id]` | Update order status |
+| GET | `/api/admin/promo` | List all promo codes |
+| POST | `/api/admin/promo` | Create promo code |
+| PUT | `/api/admin/promo/[id]` | Update status / value / limits |
+| DELETE | `/api/admin/promo/[id]` | Delete promo code |
+| GET | `/api/admin/analytics` | Revenue KPIs + chart data |
+| GET | `/api/admin/customers` | Customer list + metrics |
+| GET | `/api/admin/feedback` | Feedback summary + individual reviews |
+| GET | `/api/admin/newsletter` | Subscriber list + campaign history |
+| POST | `/api/admin/newsletter` | Send campaign to all subscribers |
 
-| Method | Path | Purpose |
-|---|---|---|
-| `GET` | `/api/admin/check` | Returns `{ isAdmin: bool }` |
-| `GET` | `/api/admin/menu` | All menu items (including unavailable) |
-| `POST` | `/api/admin/menu` | Create new menu item |
-| `PUT` | `/api/admin/menu/[id]` | Update menu item fields |
-| `DELETE` | `/api/admin/menu/[id]` | Hard-delete (or soft-delete if has orders) |
-| `GET` | `/api/admin/newsletter` | Subscriber list + campaign history |
-| `POST` | `/api/admin/newsletter` | Send email campaign via Resend |
+### Webhooks
+| Method | Route | Purpose |
+|--------|-------|---------|
+| POST | `/api/webhooks/stripe` | Stripe payment confirmation |
 
 ---
 
 ## Database Tables
 
 | Table | Purpose |
-|---|---|
-| `User` | Registered accounts (bcrypt password, phone, address, newsletterSubscribed) |
-| `MenuItem` | Menu catalogue (name, description, price, category, imageUrl, available, popular) |
-| `Order` | Customer orders (userId, total, status, stripeId) |
-| `OrderItem` | Line items per order (orderId, menuItemId, quantity, unitPrice) |
-| `NewsletterCampaign` | Record of every sent campaign (subject, body, sentAt, recipientCount) |
-| `NewsletterSubscriber` | Public subscribers (non-registered users who opted in via frontend form) |
+|-------|---------|
+| `"User"` | Accounts — email, bcrypt password, phone, address, verified, newsletterSubscribed |
+| `"MenuItem"` | Menu catalogue — name, price, category, image, allergens, available, popular |
+| `"Order"` | Orders — userId, total, discount, promoCode, stripeId, status, notes |
+| `"OrderItem"` | Line items — orderId, menuItemId, quantity, unitPrice |
+| `"Feedback"` | Ratings — orderId, foodRating, serviceRating, comment |
+| `"NewsletterSubscriber"` | Public (non-account) email signups |
+| `"NewsletterCampaign"` | Sent campaign log — subject, sentAt, recipientCount |
+| `"PromoCode"` | Discount codes — code, discountType, discountValue, status, usedCount, maxUses, expiresAt |

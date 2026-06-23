@@ -92,7 +92,7 @@ export function Header() {
             <span className="font-mono text-[#E8531A]">{cartCount}</span>
           </button>
 
-          {/* Admin link — only for admin users */}
+          {/* Admin link — only for admin users, desktop */}
           {isAdmin && (
             <button
               onClick={() => handleNav('admin')}
@@ -169,6 +169,19 @@ export function Header() {
                 className="block w-full rounded-lg px-3 py-2.5 text-left text-sm font-medium uppercase tracking-wider text-[#f5f0e8]/80 hover:bg-white/5"
               >
                 Account
+              </button>
+            )}
+            {isAdmin && (
+              <button
+                onClick={() => handleNav('admin')}
+                className={cn(
+                  'block w-full rounded-lg px-3 py-2.5 text-left text-sm font-medium uppercase tracking-wider',
+                  view === 'admin'
+                    ? 'bg-[#e8531a]/10 text-[#e8531a]'
+                    : 'text-[#f5f0e8]/80 hover:bg-white/5'
+                )}
+              >
+                Admin
               </button>
             )}
           </div>

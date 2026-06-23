@@ -68,17 +68,19 @@ export const authClient = {
       name,
       phone,
       address,
+      newsletterSubscribed,
     }: {
       email: string;
       password: string;
       name: string;
       phone?: string;
       address?: string;
+      newsletterSubscribed?: boolean;
     }) {
       const res = await fetch('/api/auth/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password, name, phone, address }),
+        body: JSON.stringify({ email, password, name, phone, address, newsletterSubscribed }),
       });
       const data = await res.json();
       if (!res.ok) return { error: { message: data.error ?? 'Registration failed' } };

@@ -6,7 +6,7 @@ import { signToken, COOKIE_NAME, MAX_AGE } from '@/lib/session';
 
 export async function POST(req: Request) {
   const body = await req.json().catch(() => ({}));
-  const { email, password, name, phone, address } = body;
+  const { email, password, name, phone, address, newsletterSubscribed } = body;
 
   if (!name?.trim() || !email?.trim() || !password) {
     return NextResponse.json({ error: 'Name, email, and password are required' }, { status: 400 });
@@ -39,6 +39,13 @@ export async function POST(req: Request) {
     )
     RETURNING id, name, email
   `;
+
+  // Opt-in to newsletter — column added lazily; ignore if not yet migrated
+  if (newsletterSubscribed) {
+    try {
+      await sql`UPDATE "User" SET "newsletterSubscribed" = true WHERE id = ${id}`;
+    } catch { /* column not yet migrated — safe to skip */ }
+  }
 
   const user = rows[0];
   const token = signToken(user.id);

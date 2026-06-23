@@ -19,6 +19,7 @@ export function AuthView() {
     password: '',
     phone: '',
     address: '',
+    newsletterSubscribed: false,
   });
 
   const update = (k: keyof typeof form, v: string) =>
@@ -68,6 +69,7 @@ export function AuthView() {
         name: form.name,
         phone: form.phone || undefined,
         address: form.address || undefined,
+        newsletterSubscribed: form.newsletterSubscribed,
       });
       if (error) {
         toast.error(error.message || 'Registration failed');
@@ -178,6 +180,24 @@ export function AuthView() {
                   onChange={(v) => update('address', v)}
                   placeholder="123 Main St, Springfield, IL"
                 />
+                {/* Newsletter opt-in */}
+                <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-white/10 bg-[#0d0d0d] p-3 transition-colors hover:border-[#e8531a]/30">
+                  <div className="relative mt-0.5 shrink-0">
+                    <input
+                      type="checkbox"
+                      checked={form.newsletterSubscribed}
+                      onChange={(e) => setForm((f) => ({ ...f, newsletterSubscribed: e.target.checked }))}
+                      className="peer h-4 w-4 cursor-pointer appearance-none rounded border border-white/20 bg-[#1a1a1a] checked:border-[#e8531a] checked:bg-[#e8531a] transition-colors"
+                    />
+                    <svg className="pointer-events-none absolute inset-0 hidden h-4 w-4 peer-checked:block" viewBox="0 0 16 16" fill="none">
+                      <path d="M3 8l3.5 3.5L13 5" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-[#f5f0e8]">Subscribe to newsletter</p>
+                    <p className="text-xs text-[#666]">Get updates on new items, deals, and grill news.</p>
+                  </div>
+                </label>
               </>
             )}
 

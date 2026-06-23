@@ -39,7 +39,28 @@ export async function POST(req: Request) {
   const tax = Math.round(sub * TAX_RATE * 100) / 100;
   const total = Math.round((sub + tax + SERVICE_FEE) * 100) / 100;
   const orderId = uuidv4();
-  const stripeId = `mock_${Date.now()}`;
+
+  // Stripe PaymentIntent if configured, otherwise mock
+  let stripeId = `mock_${Date.now()}`;
+  let clientSecret: string | null = null;
+
+  if (process.env.STRIPE_SECRET_KEY) {
+    try {
+      const Stripe = (await import('stripe')).default;
+      const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
+      const intent = await stripe.paymentIntents.create({
+        amount: Math.round(total * 100), // cents
+        currency: 'usd',
+        metadata: { orderId, userId },
+        description: `828 Grill order ${orderId.slice(-8).toUpperCase()}`,
+      });
+      stripeId = intent.id;
+      clientSecret = intent.client_secret;
+    } catch (err) {
+      console.error('Stripe PaymentIntent error:', err);
+      // fall through to mock
+    }
+  }
 
   await sql`
     INSERT INTO "Order" (id, "userId", total, status, "stripeId", "createdAt")
@@ -55,6 +76,7 @@ export async function POST(req: Request) {
 
   return NextResponse.json({
     order: { id: orderId, total, status: 'pending', stripeId },
-    session: { id: stripeId },
+    session: { id: stripeId, clientSecret },
+    stripeEnabled: !!clientSecret,
   });
 }

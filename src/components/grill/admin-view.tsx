@@ -6,12 +6,14 @@ import {
   Plus, Pencil, Trash2, X, Check, Loader2, ChevronDown,
   LayoutGrid, Flame, Search, AlertTriangle, ToggleLeft, ToggleRight,
   Star, ImageIcon, ArrowLeft, Upload, Link2, Mail, Users, Send,
-  Clock, ChevronRight,
+  Clock, ChevronRight, ShoppingBag, BarChart2,
 } from 'lucide-react';
 import { useUI } from '@/store/ui';
 import { cn } from '@/lib/utils';
+import { AdminOrders } from './admin-orders';
+import { AdminAnalytics } from './admin-analytics';
 
-type Tab = 'menu' | 'newsletter';
+type Tab = 'menu' | 'orders' | 'newsletter' | 'analytics';
 type Category = 'Burgers' | 'Sides' | 'Drinks' | 'Combos';
 type ImageMode = 'url' | 'upload';
 
@@ -303,8 +305,10 @@ export function AdminView() {
         {/* Tab nav */}
         <div className="mx-auto flex max-w-screen-xl gap-1 px-5 pb-0">
           {([
-            { key: 'menu', icon: LayoutGrid, label: 'Menu Items' },
+            { key: 'menu', icon: LayoutGrid, label: 'Menu' },
+            { key: 'orders', icon: ShoppingBag, label: 'Orders' },
             { key: 'newsletter', icon: Mail, label: 'Newsletter' },
+            { key: 'analytics', icon: BarChart2, label: 'Analytics' },
           ] as const).map(({ key, icon: Icon, label }) => (
             <button
               key={key}
@@ -612,6 +616,13 @@ export function AdminView() {
             )}
           </div>
         )}
+
+        {/* ══════════════ ORDERS TAB ══════════════ */}
+        {tab === 'orders' && <AdminOrders />}
+
+        {/* ══════════════ ANALYTICS TAB ══════════════ */}
+        {tab === 'analytics' && <AdminAnalytics />}
+
       </div>
 
       {/* ── Edit / Create slide-over ── */}

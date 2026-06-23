@@ -6,7 +6,7 @@ export async function POST(req: Request) {
   const { data: session } = await auth.getSession();
   if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-  const { orderId } = await req.json();
+  const { orderId, sessionId } = await req.json();
   if (!orderId) return NextResponse.json({ error: 'Missing orderId' }, { status: 400 });
 
   const sql = getSql();
@@ -15,9 +15,26 @@ export async function POST(req: Request) {
   const userId = users[0].id;
 
   const existing = await sql`
-    SELECT id FROM "Order" WHERE id = ${orderId} AND "userId" = ${userId} LIMIT 1
+    SELECT id, status, "stripeId" FROM "Order" WHERE id = ${orderId} AND "userId" = ${userId} LIMIT 1
   `;
   if (!existing.length) return NextResponse.json({ error: 'Order not found' }, { status: 404 });
+
+  const order = existing[0];
+
+  // Verify with Stripe if configured and this is a real Stripe PaymentIntent
+  if (process.env.STRIPE_SECRET_KEY && sessionId && !sessionId.startsWith('mock_')) {
+    try {
+      const Stripe = (await import('stripe')).default;
+      const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
+      const intent = await stripe.paymentIntents.retrieve(sessionId);
+      if (intent.status !== 'succeeded') {
+        return NextResponse.json({ error: 'Payment not confirmed' }, { status: 402 });
+      }
+    } catch (err) {
+      console.error('Stripe verify error:', err);
+      return NextResponse.json({ error: 'Failed to verify payment' }, { status: 500 });
+    }
+  }
 
   await sql`UPDATE "Order" SET status = 'paid' WHERE id = ${orderId}`;
 

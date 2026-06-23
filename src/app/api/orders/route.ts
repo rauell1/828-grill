@@ -14,10 +14,15 @@ export async function GET() {
       o.id, o."userId", o.total, o.status, o."stripeId", o."createdAt",
       json_agg(json_build_object(
         'id', oi.id,
+        'menuItemId', oi."menuItemId",
         'quantity', oi.quantity,
         'unitPrice', oi."unitPrice",
-        'menuItem', json_build_object('name', m.name, 'imageUrl', m."imageUrl")
-      )) AS items
+        'menuItem', json_build_object(
+          'name', m.name,
+          'imageUrl', m."imageUrl",
+          'category', m.category
+        )
+      ) ORDER BY oi.id) AS items
     FROM "Order" o
     JOIN "OrderItem" oi ON oi."orderId" = o.id
     JOIN "MenuItem" m ON m.id = oi."menuItemId"

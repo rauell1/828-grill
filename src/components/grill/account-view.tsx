@@ -3,25 +3,48 @@
 import { useState, useEffect } from 'react';
 import { authClient } from '@/lib/auth/client';
 import { useUI } from '@/store/ui';
+import { useCart } from '@/store/cart';
 import { useToast } from '@/hooks/use-toast';
 import { formatPrice, shortId } from '@/lib/format';
-import { User, Package, LogOut, Save, Loader2, Mail, Phone, MapPin, Receipt, ArrowLeft, ShieldAlert } from 'lucide-react';
+import {
+  User, Package, LogOut, Save, Loader2, Mail, Phone, MapPin,
+  Receipt, ArrowLeft, ShieldAlert, RotateCcw,
+} from 'lucide-react';
 import { toast } from 'sonner';
+
+interface OrderItem {
+  id: string;
+  menuItemId: string;
+  quantity: number;
+  unitPrice: number;
+  menuItem: { name: string; imageUrl: string; category: string };
+}
 
 interface OrderRow {
   id: string;
   total: number;
   status: string;
   createdAt: string;
-  items: { id: string; quantity: number; menuItem: { name: string } }[];
+  items: OrderItem[];
 }
+
+const STATUS_STYLE: Record<string, string> = {
+  pending:    'bg-gray-500/15 text-gray-400',
+  confirmed:  'bg-blue-500/15 text-blue-400',
+  paid:       'bg-blue-500/15 text-blue-400',
+  preparing:  'bg-yellow-500/15 text-yellow-400',
+  ready:      'bg-purple-500/15 text-purple-400',
+  delivered:  'bg-green-500/15 text-green-400',
+  cancelled:  'bg-red-500/15 text-red-400',
+};
 
 export function AccountView() {
   const { data: sessionData, isPending } = authClient.useSession();
   const session = sessionData;
   const status = isPending ? 'loading' : session ? 'authenticated' : 'unauthenticated';
-  const { setView, setOrderId } = useUI();
+  const { setView, setOrderId, setCartOpen } = useUI();
   const { toast: legacyToast } = useToast();
+  const addToCart = useCart((s) => s.add);
 
   const [profile, setProfile] = useState<any>(null);
   const [orders, setOrders] = useState<OrderRow[]>([]);
@@ -29,6 +52,7 @@ export function AccountView() {
   const [saving, setSaving] = useState(false);
   const [editForm, setEditForm] = useState({ name: '', phone: '', address: '' });
   const [resending, setResending] = useState(false);
+  const [reorderingId, setReorderingId] = useState<string | null>(null);
 
   useEffect(() => {
     if (status === 'unauthenticated') {
@@ -57,8 +81,6 @@ export function AccountView() {
         }
         if (oRes.ok) {
           setOrders(oData.orders || []);
-        } else {
-          console.error('Orders API error:', oRes.status, oData);
         }
       } catch (e) {
         console.error('Account fetch error:', e);
@@ -66,9 +88,7 @@ export function AccountView() {
         if (!cancelled) setLoading(false);
       }
     })();
-    return () => {
-      cancelled = true;
-    };
+    return () => { cancelled = true; };
   }, [status, setView]);
 
   const handleSave = async () => {
@@ -100,6 +120,28 @@ export function AccountView() {
       toast.error('Network error');
     } finally {
       setResending(false);
+    }
+  };
+
+  const handleReorder = async (order: OrderRow) => {
+    setReorderingId(order.id);
+    try {
+      for (const item of order.items) {
+        addToCart(
+          {
+            id: item.menuItemId,
+            name: item.menuItem.name,
+            price: item.unitPrice,
+            imageUrl: item.menuItem.imageUrl,
+            category: item.menuItem.category,
+          },
+          item.quantity,
+        );
+      }
+      toast.success(`${order.items.length} item${order.items.length > 1 ? 's' : ''} added to cart`);
+      setCartOpen(true);
+    } finally {
+      setReorderingId(null);
     }
   };
 
@@ -137,7 +179,9 @@ export function AccountView() {
               <ShieldAlert className="mt-0.5 h-5 w-5 shrink-0 text-yellow-400" />
               <div>
                 <p className="text-sm font-bold text-yellow-300">Email not verified</p>
-                <p className="text-xs text-yellow-400/80">Check your inbox for a verification link, or request a new one.</p>
+                <p className="text-xs text-yellow-400/80">
+                  Check your inbox for a verification link, or request a new one.
+                </p>
               </div>
             </div>
             <button
@@ -250,46 +294,62 @@ export function AccountView() {
                 </button>
               </div>
             ) : (
-              <div className="scroll-area-dark max-h-[28rem] space-y-3 overflow-y-auto pr-1">
+              <div className="scroll-area-dark max-h-[32rem] space-y-3 overflow-y-auto pr-1">
                 {orders.map((o) => (
-                  <button
+                  <div
                     key={o.id}
-                    onClick={() => {
-                      setOrderId(o.id);
-                      setView('order');
-                    }}
-                    className="block w-full rounded-xl border border-white/10 bg-[#0d0d0d] p-4 text-left transition-colors hover:border-[#e8531a]/40"
+                    className="rounded-xl border border-white/10 bg-[#0d0d0d] p-4"
                   >
-                    <div className="flex items-center justify-between">
-                      <span className="font-data text-sm font-bold text-[#e8531a]">
+                    {/* Top row: ID + status */}
+                    <div className="flex items-center justify-between gap-2">
+                      <button
+                        onClick={() => { setOrderId(o.id); setView('order'); }}
+                        className="font-data text-sm font-bold text-[#e8531a] hover:underline"
+                      >
                         #{shortId(o.id)}
-                      </span>
+                      </button>
                       <span
                         className={`rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider ${
-                          o.status === 'paid'
-                            ? 'bg-green-500/15 text-green-400'
-                            : 'bg-yellow-500/15 text-yellow-400'
+                          STATUS_STYLE[o.status] ?? 'bg-gray-500/15 text-gray-400'
                         }`}
                       >
                         {o.status}
                       </span>
                     </div>
+
+                    {/* Items summary */}
                     <p className="mt-1 truncate text-xs text-[#888888]">
                       {o.items.map((i) => `${i.quantity}× ${i.menuItem.name}`).join(', ')}
                     </p>
-                    <div className="mt-2 flex justify-between text-sm">
-                      <span className="text-[#888888]">
-                        {new Date(o.createdAt).toLocaleDateString('en-US', {
-                          month: 'short',
-                          day: 'numeric',
-                          year: 'numeric',
-                        })}
-                      </span>
-                      <span className="font-data font-bold text-[#f5f0e8]">
-                        {formatPrice(o.total)}
-                      </span>
+
+                    {/* Bottom row: date + total + reorder */}
+                    <div className="mt-3 flex items-center justify-between gap-2">
+                      <div className="flex flex-col gap-0.5">
+                        <span className="text-xs text-[#888888]">
+                          {new Date(o.createdAt).toLocaleDateString('en-US', {
+                            month: 'short',
+                            day: 'numeric',
+                            year: 'numeric',
+                          })}
+                        </span>
+                        <span className="font-data text-sm font-bold text-[#f5f0e8]">
+                          {formatPrice(o.total)}
+                        </span>
+                      </div>
+                      <button
+                        onClick={() => handleReorder(o)}
+                        disabled={reorderingId === o.id}
+                        className="flex items-center gap-1.5 rounded-lg border border-[#e8531a]/30 px-3 py-1.5 text-xs font-bold uppercase tracking-wider text-[#e8531a] transition hover:bg-[#e8531a]/10 disabled:opacity-50"
+                      >
+                        {reorderingId === o.id ? (
+                          <Loader2 className="h-3 w-3 animate-spin" />
+                        ) : (
+                          <RotateCcw className="h-3 w-3" />
+                        )}
+                        Reorder
+                      </button>
                     </div>
-                  </button>
+                  </div>
                 ))}
               </div>
             )}

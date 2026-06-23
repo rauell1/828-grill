@@ -1,6 +1,8 @@
 'use client';
 
+import { useState } from 'react';
 import { MenuCard, MenuItemData } from './menu-card';
+import { ItemDetailModal } from './item-detail-modal';
 import { Reveal } from './reveal';
 import { useUI } from '@/store/ui';
 import { ArrowRight } from 'lucide-react';
@@ -8,6 +10,7 @@ import { ArrowRight } from 'lucide-react';
 export function FeaturedSection({ items }: { items: MenuItemData[] }) {
   const setView = useUI((s) => s.setView);
   const featured = items.filter((i) => i.featured || i.popular).slice(0, 4);
+  const [selectedItem, setSelectedItem] = useState<MenuItemData | null>(null);
 
   if (featured.length === 0) return null;
 
@@ -29,7 +32,7 @@ export function FeaturedSection({ items }: { items: MenuItemData[] }) {
         <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
           {featured.map((item, i) => (
             <Reveal key={item.id} delay={i * 80}>
-              <MenuCard item={item} />
+              <MenuCard item={item} onOpen={setSelectedItem} />
             </Reveal>
           ))}
         </div>
@@ -44,6 +47,13 @@ export function FeaturedSection({ items }: { items: MenuItemData[] }) {
           </button>
         </Reveal>
       </div>
+
+      {selectedItem && (
+        <ItemDetailModal
+          item={selectedItem}
+          onClose={() => setSelectedItem(null)}
+        />
+      )}
     </section>
   );
 }

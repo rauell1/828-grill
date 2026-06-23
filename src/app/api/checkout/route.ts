@@ -6,6 +6,14 @@ import { v4 as uuidv4 } from 'uuid';
 const TAX_RATE = 0.08;
 const SERVICE_FEE = 1.5;
 
+// Keep in sync with /api/promo/route.ts
+const PROMOS: Record<string, { type: 'pct' | 'flat'; value: number }> = {
+  FIRE15:    { type: 'pct',  value: 15 },
+  GRILL20:   { type: 'pct',  value: 20 },
+  WELCOME10: { type: 'flat', value: 10 },
+  FIRSTBITE: { type: 'pct',  value: 10 },
+};
+
 interface CartItem {
   id: string;
   name: string;
@@ -22,6 +30,7 @@ export async function POST(req: Request) {
   const cartItems: CartItem[] = body.items ?? [];
   if (!cartItems.length) return NextResponse.json({ error: 'Cart is empty' }, { status: 400 });
   const notes = typeof body.notes === 'string' ? body.notes.slice(0, 500).trim() : null;
+  const promoCode = typeof body.promoCode === 'string' ? body.promoCode.toUpperCase().trim() : null;
 
   const sql = getSql();
   const ids = cartItems.map((i) => i.id);
@@ -33,12 +42,27 @@ export async function POST(req: Request) {
   }
 
   await sql`ALTER TABLE "Order" ADD COLUMN IF NOT EXISTS notes TEXT`.catch(() => {});
+  await sql`ALTER TABLE "Order" ADD COLUMN IF NOT EXISTS discount FLOAT NOT NULL DEFAULT 0`.catch(() => {});
+  await sql`ALTER TABLE "Order" ADD COLUMN IF NOT EXISTS "promoCode" TEXT`.catch(() => {});
 
   const userId = session.user.id;
 
   const sub = cartItems.reduce((s, i) => s + i.price * i.quantity, 0);
-  const tax = Math.round(sub * TAX_RATE * 100) / 100;
-  const total = Math.round((sub + tax + SERVICE_FEE) * 100) / 100;
+
+  // Apply promo discount to subtotal
+  let discount = 0;
+  let appliedPromo: string | null = null;
+  if (promoCode && PROMOS[promoCode]) {
+    const promo = PROMOS[promoCode];
+    discount = promo.type === 'pct'
+      ? Math.round(sub * (promo.value / 100) * 100) / 100
+      : Math.min(promo.value, sub); // flat discount can't exceed subtotal
+    appliedPromo = promoCode;
+  }
+
+  const discountedSub = Math.max(0, sub - discount);
+  const tax = Math.round(discountedSub * TAX_RATE * 100) / 100;
+  const total = Math.round((discountedSub + tax + SERVICE_FEE) * 100) / 100;
   const orderId = uuidv4();
 
   // Stripe PaymentIntent if configured, otherwise mock
@@ -59,13 +83,12 @@ export async function POST(req: Request) {
       clientSecret = intent.client_secret;
     } catch (err) {
       console.error('Stripe PaymentIntent error:', err);
-      // fall through to mock
     }
   }
 
   await sql`
-    INSERT INTO "Order" (id, "userId", total, status, "stripeId", notes, "createdAt")
-    VALUES (${orderId}, ${userId}, ${total}, 'pending', ${stripeId}, ${notes || null}, NOW())
+    INSERT INTO "Order" (id, "userId", total, status, "stripeId", notes, discount, "promoCode", "createdAt")
+    VALUES (${orderId}, ${userId}, ${total}, 'pending', ${stripeId}, ${notes || null}, ${discount}, ${appliedPromo}, NOW())
   `;
 
   for (const item of cartItems) {
@@ -76,7 +99,7 @@ export async function POST(req: Request) {
   }
 
   return NextResponse.json({
-    order: { id: orderId, total, status: 'pending', stripeId },
+    order: { id: orderId, total, discount, appliedPromo, status: 'pending', stripeId },
     session: { id: stripeId, clientSecret },
     stripeEnabled: !!clientSecret,
   });

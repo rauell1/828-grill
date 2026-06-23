@@ -12,27 +12,24 @@ import { useCart } from '@/store/cart';
 import { useUI } from '@/store/ui';
 import { authClient } from '@/lib/auth/client';
 import { formatPrice } from '@/lib/format';
-import { ArrowLeft, Lock, CreditCard, Loader2, CheckCircle2, ShieldCheck } from 'lucide-react';
+import {
+  ArrowLeft, Lock, CreditCard, Loader2, CheckCircle2,
+  ShieldCheck, Tag, X, Check,
+} from 'lucide-react';
 import { toast } from 'sonner';
-import { ImageWithFallback } from './image-fallback';
 
 const TAX_RATE = 0.08;
 const SERVICE_FEE = 1.5;
 
-// Stripe instance — only created if key is configured
 const stripePromise = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY
   ? loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY)
   : null;
 
 // ── Stripe Elements inner form ────────────────────────────────────────────────
 function StripePayForm({
-  total,
-  orderId,
-  onSuccess,
+  total, orderId, onSuccess,
 }: {
-  total: number;
-  orderId: string;
-  onSuccess: (order: any) => void;
+  total: number; orderId: string; onSuccess: (order: any) => void;
 }) {
   const stripe = useStripe();
   const elements = useElements();
@@ -46,25 +43,11 @@ function StripePayForm({
     setErrMsg('');
 
     const { error: submitErr } = await elements.submit();
-    if (submitErr) {
-      setErrMsg(submitErr.message ?? 'Payment error');
-      setProcessing(false);
-      return;
-    }
+    if (submitErr) { setErrMsg(submitErr.message ?? 'Payment error'); setProcessing(false); return; }
 
-    // Confirm the payment — Stripe sends webhook on success
-    const { error } = await stripe.confirmPayment({
-      elements,
-      redirect: 'if_required',
-    });
+    const { error } = await stripe.confirmPayment({ elements, redirect: 'if_required' });
+    if (error) { setErrMsg(error.message ?? 'Payment failed'); setProcessing(false); return; }
 
-    if (error) {
-      setErrMsg(error.message ?? 'Payment failed');
-      setProcessing(false);
-      return;
-    }
-
-    // Payment succeeded — confirm server-side to mark order paid
     try {
       const res = await fetch('/api/checkout/confirm', {
         method: 'POST',
@@ -83,11 +66,7 @@ function StripePayForm({
 
   return (
     <form onSubmit={handleSubmit}>
-      <PaymentElement
-        options={{
-          layout: 'tabs',
-        }}
-      />
+      <PaymentElement options={{ layout: 'tabs' }} />
       {errMsg && (
         <p className="mt-3 rounded-lg bg-red-500/10 px-3 py-2 text-xs text-red-400">{errMsg}</p>
       )}
@@ -96,30 +75,19 @@ function StripePayForm({
         disabled={!stripe || processing}
         className="mt-5 flex w-full items-center justify-center gap-2 rounded-lg bg-[#e8531a] py-4 text-base font-bold uppercase tracking-wider text-[#0d0d0d] transition-all hover:bg-[#ff6b2c] active:scale-[0.99] disabled:opacity-60 ember-glow"
       >
-        {processing ? (
-          <Loader2 className="h-5 w-5 animate-spin" />
-        ) : (
-          <>
-            <Lock className="h-4 w-4" />
-            Pay {formatPrice(total)}
-          </>
+        {processing ? <Loader2 className="h-5 w-5 animate-spin" /> : (
+          <><Lock className="h-4 w-4" /> Pay {formatPrice(total)}</>
         )}
       </button>
     </form>
   );
 }
 
-// ── Mock card form (fallback when Stripe is not configured) ───────────────────
+// ── Mock card form ────────────────────────────────────────────────────────────
 function MockPayForm({
-  total,
-  orderId,
-  stripeId,
-  onSuccess,
+  total, orderId, stripeId, onSuccess,
 }: {
-  total: number;
-  orderId: string;
-  stripeId: string;
-  onSuccess: (order: any) => void;
+  total: number; orderId: string; stripeId: string; onSuccess: (order: any) => void;
 }) {
   const [card, setCard] = useState({ number: '', exp: '', cvc: '', name: '' });
   const [processing, setProcessing] = useState(false);
@@ -133,10 +101,7 @@ function MockPayForm({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (card.number.replace(/\s/g, '').length < 16) {
-      toast.error('Enter a valid 16-digit card number');
-      return;
-    }
+    if (card.number.replace(/\s/g, '').length < 16) { toast.error('Enter a valid 16-digit card number'); return; }
     if (card.exp.length < 5) { toast.error('Enter a valid expiry (MM/YY)'); return; }
     if (card.cvc.length < 3) { toast.error('Enter a valid CVC'); return; }
 
@@ -189,9 +154,7 @@ function MockPayForm({
       </div>
       <div className="grid grid-cols-2 gap-3">
         <div>
-          <label className="mb-1 block text-xs font-semibold uppercase tracking-wider text-[#888888]">
-            Expiry
-          </label>
+          <label className="mb-1 block text-xs font-semibold uppercase tracking-wider text-[#888888]">Expiry</label>
           <input
             inputMode="numeric"
             placeholder="MM/YY"
@@ -201,9 +164,7 @@ function MockPayForm({
           />
         </div>
         <div>
-          <label className="mb-1 block text-xs font-semibold uppercase tracking-wider text-[#888888]">
-            CVC
-          </label>
+          <label className="mb-1 block text-xs font-semibold uppercase tracking-wider text-[#888888]">CVC</label>
           <input
             inputMode="numeric"
             placeholder="123"
@@ -224,16 +185,89 @@ function MockPayForm({
         disabled={processing}
         className="flex w-full items-center justify-center gap-2 rounded-lg bg-[#e8531a] py-4 text-base font-bold uppercase tracking-wider text-[#0d0d0d] transition-all hover:bg-[#ff6b2c] active:scale-[0.99] disabled:opacity-60 ember-glow"
       >
-        {processing ? (
-          <Loader2 className="h-5 w-5 animate-spin" />
-        ) : (
-          <>
-            <Lock className="h-4 w-4" />
-            Pay {formatPrice(total)}
-          </>
+        {processing ? <Loader2 className="h-5 w-5 animate-spin" /> : (
+          <><Lock className="h-4 w-4" /> Pay {formatPrice(total)}</>
         )}
       </button>
     </form>
+  );
+}
+
+// ── Promo code input ──────────────────────────────────────────────────────────
+function PromoField({
+  onApply, onRemove, appliedCode,
+}: {
+  onApply: (code: string, label: string, discount: number) => void;
+  onRemove: () => void;
+  appliedCode: string | null;
+}) {
+  const [input, setInput] = useState('');
+  const [checking, setChecking] = useState(false);
+  const [error, setError] = useState('');
+
+  const handleApply = async () => {
+    const code = input.trim().toUpperCase();
+    if (!code) return;
+    setChecking(true);
+    setError('');
+    try {
+      const res = await fetch(`/api/promo?code=${encodeURIComponent(code)}`);
+      const data = await res.json();
+      if (!res.ok || !data.valid) {
+        setError(data.error || 'Invalid promo code');
+      } else {
+        onApply(data.code, data.label, 0); // discount value computed server-side; 0 here is a placeholder
+        setInput('');
+      }
+    } catch {
+      setError('Could not validate code');
+    } finally {
+      setChecking(false);
+    }
+  };
+
+  if (appliedCode) {
+    return (
+      <div className="flex items-center justify-between rounded-lg border border-green-500/30 bg-green-500/8 px-3 py-2.5">
+        <div className="flex items-center gap-2 text-xs">
+          <Check className="h-3.5 w-3.5 text-green-400" />
+          <span className="font-bold uppercase tracking-wider text-green-400">{appliedCode}</span>
+          <span className="text-green-400/70">applied</span>
+        </div>
+        <button onClick={onRemove} className="text-[#888] hover:text-red-400">
+          <X className="h-4 w-4" />
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      <label className="mb-1 block text-xs font-semibold uppercase tracking-wider text-[#888888]">
+        Promo code <span className="normal-case text-[#555]">(optional)</span>
+      </label>
+      <div className="flex gap-2">
+        <div className="relative flex-1">
+          <Tag className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#555]" />
+          <input
+            placeholder="FIRE15"
+            value={input}
+            onChange={(e) => { setInput(e.target.value.toUpperCase()); setError(''); }}
+            onKeyDown={(e) => e.key === 'Enter' && handleApply()}
+            className="w-full rounded-lg border border-white/10 bg-[#0d0d0d] py-2.5 pl-9 pr-3 text-sm text-[#f5f0e8] outline-none transition-colors focus:border-[#e8531a] placeholder:text-[#444]"
+          />
+        </div>
+        <button
+          type="button"
+          onClick={handleApply}
+          disabled={checking || !input.trim()}
+          className="rounded-lg border border-[#e8531a]/40 px-4 py-2.5 text-xs font-bold uppercase tracking-wider text-[#e8531a] transition hover:bg-[#e8531a]/10 disabled:opacity-50"
+        >
+          {checking ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Apply'}
+        </button>
+      </div>
+      {error && <p className="mt-1 text-xs text-red-400">{error}</p>}
+    </div>
   );
 }
 
@@ -247,13 +281,27 @@ export function CheckoutView() {
   const [orderData, setOrderData] = useState<any>(null);
   const [pendingOrder, setPendingOrder] = useState<{
     id: string; stripeId: string; clientSecret: string | null; stripeEnabled: boolean;
+    discount: number;
   } | null>(null);
   const [delivery, setDelivery] = useState({ phone: '', address: '', notes: '' });
+  const [promoCode, setPromoCode] = useState<string | null>(null);
+  const [promoLabel, setPromoLabel] = useState<string | null>(null);
 
   const sub = subtotal();
+  // Client-side discount preview (approximate — server is authoritative)
+  const previewDiscount = promoCode ? 0 : 0; // shown as "saving" line after server confirms
   const tax = Math.round(sub * TAX_RATE * 100) / 100;
   const fee = items.length > 0 ? SERVICE_FEE : 0;
   const total = Math.round((sub + tax + fee) * 100) / 100;
+
+  // After order created, use server-confirmed values
+  const confirmedDiscount = pendingOrder?.discount ?? 0;
+  const confirmedTotal = pendingOrder
+    ? (() => {
+        const discSub = Math.max(0, sub - confirmedDiscount);
+        return Math.round((discSub * (1 + TAX_RATE) + SERVICE_FEE) * 100) / 100;
+      })()
+    : total;
 
   useEffect(() => {
     if (items.length === 0 && step !== 'done' && !orderId) setView('menu');
@@ -278,7 +326,11 @@ export function CheckoutView() {
       const res = await fetch('/api/checkout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ items, notes: delivery.notes || undefined }),
+        body: JSON.stringify({
+          items,
+          notes: delivery.notes || undefined,
+          promoCode: promoCode || undefined,
+        }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to start checkout');
@@ -287,6 +339,7 @@ export function CheckoutView() {
         stripeId: data.session.id,
         clientSecret: data.session.clientSecret,
         stripeEnabled: data.stripeEnabled,
+        discount: data.order.discount ?? 0,
       });
       setStep('form');
     } catch (err: any) {
@@ -317,24 +370,31 @@ export function CheckoutView() {
           <p className="mt-2 text-sm text-[#888888]">
             Your payment went through. We&apos;re firing up the grill.
           </p>
-          <div className="mt-5 rounded-lg border border-white/10 bg-[#0d0d0d] p-4">
-            <div className="flex justify-between text-sm">
+          <div className="mt-5 space-y-2 rounded-lg border border-white/10 bg-[#0d0d0d] p-4 text-sm">
+            <div className="flex justify-between">
               <span className="text-[#888888]">Order ID</span>
-              <span className="font-data text-[#e8531a]">
-                #{orderData.id.slice(-8).toUpperCase()}
-              </span>
+              <span className="font-data text-[#e8531a]">#{orderData.id.slice(-8).toUpperCase()}</span>
             </div>
-            <div className="mt-2 flex justify-between text-sm">
+            {orderData.discount > 0 && (
+              <div className="flex justify-between">
+                <span className="text-[#888888]">Discount saved</span>
+                <span className="font-data font-bold text-green-400">-{formatPrice(orderData.discount)}</span>
+              </div>
+            )}
+            <div className="flex justify-between border-t border-white/10 pt-2">
               <span className="text-[#888888]">Total paid</span>
               <span className="font-data font-bold text-[#f5f0e8]">{formatPrice(orderData.total)}</span>
             </div>
           </div>
+          <p className="mt-4 text-xs text-[#888888]">
+            Estimated wait: <span className="font-semibold text-[#f5f0e8]">20–30 minutes</span>
+          </p>
           <div className="mt-6 flex flex-col gap-2 sm:flex-row">
             <button
               onClick={() => setView('order')}
               className="flex-1 rounded-lg bg-[#e8531a] py-3 text-sm font-bold uppercase tracking-wider text-[#0d0d0d] transition-colors hover:bg-[#ff6b2c]"
             >
-              View Receipt
+              Track Order
             </button>
             <button
               onClick={() => setView('menu')}
@@ -354,9 +414,7 @@ export function CheckoutView() {
       <div className="flex min-h-screen items-center justify-center px-4">
         <div className="text-center">
           <Loader2 className="mx-auto h-12 w-12 animate-spin text-[#e8531a]" />
-          <h2 className="mt-5 font-display text-3xl tracking-wide text-[#f5f0e8]">
-            PREPARING ORDER
-          </h2>
+          <h2 className="mt-5 font-display text-3xl tracking-wide text-[#f5f0e8]">PREPARING ORDER</h2>
           <p className="mt-2 text-sm text-[#888888]">Setting up secure payment…</p>
         </div>
       </div>
@@ -364,6 +422,8 @@ export function CheckoutView() {
   }
 
   // ── Checkout form ─────────────────────────────────────────────────────────
+  const displayTotal = pendingOrder ? confirmedTotal : total;
+
   return (
     <div className="min-h-screen px-4 pt-24 pb-16 sm:px-6 lg:px-8">
       <div className="mx-auto max-w-5xl">
@@ -393,14 +453,12 @@ export function CheckoutView() {
                 </h2>
               </div>
 
-              {/* Contact info (only before order is created) */}
+              {/* Contact + promo form (before order created) */}
               {!pendingOrder && (
                 <form onSubmit={handleCreateOrder}>
                   <div className="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
                     <div>
-                      <label className="mb-1 block text-xs font-semibold uppercase tracking-wider text-[#888888]">
-                        Name
-                      </label>
+                      <label className="mb-1 block text-xs font-semibold uppercase tracking-wider text-[#888888]">Name</label>
                       <input
                         value={session.user.name || ''}
                         readOnly
@@ -408,9 +466,7 @@ export function CheckoutView() {
                       />
                     </div>
                     <div>
-                      <label className="mb-1 block text-xs font-semibold uppercase tracking-wider text-[#888888]">
-                        Email
-                      </label>
+                      <label className="mb-1 block text-xs font-semibold uppercase tracking-wider text-[#888888]">Email</label>
                       <input
                         value={session.user.email || ''}
                         readOnly
@@ -418,9 +474,7 @@ export function CheckoutView() {
                       />
                     </div>
                     <div>
-                      <label className="mb-1 block text-xs font-semibold uppercase tracking-wider text-[#888888]">
-                        Phone
-                      </label>
+                      <label className="mb-1 block text-xs font-semibold uppercase tracking-wider text-[#888888]">Phone</label>
                       <input
                         type="tel"
                         inputMode="tel"
@@ -443,9 +497,11 @@ export function CheckoutView() {
                       />
                     </div>
                   </div>
+
                   <div className="mb-4">
                     <label className="mb-1 block text-xs font-semibold uppercase tracking-wider text-[#888888]">
-                      Special Instructions <span className="normal-case text-[#555]">(optional)</span>
+                      Special Instructions{' '}
+                      <span className="normal-case text-[#555]">(optional)</span>
                     </label>
                     <textarea
                       rows={2}
@@ -456,6 +512,19 @@ export function CheckoutView() {
                       className="w-full resize-none rounded-lg border border-white/10 bg-[#0d0d0d] px-3 py-2.5 text-sm text-[#f5f0e8] outline-none transition-colors focus:border-[#e8531a] placeholder:text-[#444]"
                     />
                   </div>
+
+                  {/* Promo code */}
+                  <div className="mb-5">
+                    <PromoField
+                      appliedCode={promoCode}
+                      onApply={(code, label) => { setPromoCode(code); setPromoLabel(label); }}
+                      onRemove={() => { setPromoCode(null); setPromoLabel(null); }}
+                    />
+                    {promoLabel && promoCode && (
+                      <p className="mt-1.5 text-xs text-green-400">{promoLabel} — discount applied at checkout</p>
+                    )}
+                  </div>
+
                   <div className="mb-6 border-t border-white/10" />
                   <button
                     type="submit"
@@ -467,9 +536,16 @@ export function CheckoutView() {
                 </form>
               )}
 
-              {/* Payment section — shown after order is created */}
+              {/* Payment section */}
               {pendingOrder && (
                 <>
+                  {confirmedDiscount > 0 && (
+                    <div className="mb-4 flex items-center gap-2 rounded-lg border border-green-500/25 bg-green-500/8 px-3 py-2.5 text-xs text-green-400">
+                      <Check className="h-3.5 w-3.5 shrink-0" />
+                      Promo <span className="font-bold uppercase">{pendingOrder && promoCode}</span> saved you{' '}
+                      <span className="font-bold">{formatPrice(confirmedDiscount)}</span>
+                    </div>
+                  )}
                   {pendingOrder.stripeEnabled && stripePromise && pendingOrder.clientSecret ? (
                     <Elements
                       stripe={stripePromise}
@@ -486,15 +562,11 @@ export function CheckoutView() {
                         },
                       }}
                     >
-                      <StripePayForm
-                        total={total}
-                        orderId={pendingOrder.id}
-                        onSuccess={handlePaymentSuccess}
-                      />
+                      <StripePayForm total={confirmedTotal} orderId={pendingOrder.id} onSuccess={handlePaymentSuccess} />
                     </Elements>
                   ) : (
                     <MockPayForm
-                      total={total}
+                      total={confirmedTotal}
                       orderId={pendingOrder.id}
                       stripeId={pendingOrder.stripeId}
                       onSuccess={handlePaymentSuccess}
@@ -521,13 +593,7 @@ export function CheckoutView() {
                 {items.map((line) => (
                   <div key={line.id} className="flex gap-3">
                     <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-lg bg-[#0d0d0d]">
-                      <ImageWithFallback
-                        src={line.imageUrl}
-                        alt={line.name}
-                        fill
-                        sizes="48px"
-                        className="object-cover"
-                      />
+                      <img src={line.imageUrl || '/placeholder-food.jpg'} alt={line.name} className="h-full w-full object-cover" />
                     </div>
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-sm font-medium text-[#f5f0e8]">{line.name}</p>
@@ -544,9 +610,17 @@ export function CheckoutView() {
                   <span>Subtotal</span>
                   <span className="font-data text-[#f5f0e8]">{formatPrice(sub)}</span>
                 </div>
+                {confirmedDiscount > 0 && (
+                  <div className="flex justify-between text-green-400">
+                    <span>Promo discount</span>
+                    <span className="font-data font-bold">-{formatPrice(confirmedDiscount)}</span>
+                  </div>
+                )}
                 <div className="flex justify-between text-[#888888]">
                   <span>Tax (8%)</span>
-                  <span className="font-data text-[#f5f0e8]">{formatPrice(tax)}</span>
+                  <span className="font-data text-[#f5f0e8]">
+                    {formatPrice(Math.round(Math.max(0, sub - confirmedDiscount) * TAX_RATE * 100) / 100)}
+                  </span>
                 </div>
                 <div className="flex justify-between text-[#888888]">
                   <span>Service fee</span>
@@ -554,7 +628,7 @@ export function CheckoutView() {
                 </div>
                 <div className="mt-2 flex justify-between border-t border-white/10 pt-2">
                   <span className="font-display text-lg tracking-wider text-[#f5f0e8]">TOTAL</span>
-                  <span className="font-data text-lg font-bold text-[#e8531a]">{formatPrice(total)}</span>
+                  <span className="font-data text-lg font-bold text-[#e8531a]">{formatPrice(displayTotal)}</span>
                 </div>
               </div>
             </div>

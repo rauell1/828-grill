@@ -2,9 +2,13 @@
 
 import { useState, useMemo, useEffect } from 'react';
 import { MenuCard, MenuItemData } from './menu-card';
+import { ItemDetailModal } from './item-detail-modal';
 import { Reveal } from './reveal';
 import { cn } from '@/lib/utils';
-import { Search, Clock, X } from 'lucide-react';
+import { Search, Clock, X, ShoppingBag } from 'lucide-react';
+import { useCart } from '@/store/cart';
+import { useUI } from '@/store/ui';
+import { formatPrice } from '@/lib/format';
 
 const CATEGORIES = ['All', 'Burgers', 'Sides', 'Drinks', 'Combos'] as const;
 type Category = (typeof CATEGORIES)[number];
@@ -18,6 +22,11 @@ export function MenuSection({ items }: { items: MenuItemData[] }) {
   const [active, setActive] = useState<Category>('All');
   const [search, setSearch] = useState('');
   const [hours, setHours] = useState<HoursData | null>(null);
+  const [selectedItem, setSelectedItem] = useState<MenuItemData | null>(null);
+
+  const cartCount = useCart((s) => s.count());
+  const cartSubtotal = useCart((s) => s.subtotal());
+  const { setCartOpen } = useUI();
 
   useEffect(() => {
     fetch('/api/hours')
@@ -36,7 +45,7 @@ export function MenuSection({ items }: { items: MenuItemData[] }) {
   }, [items, active, search]);
 
   return (
-    <section id="menu" className="min-h-screen pb-20">
+    <section id="menu" className="min-h-screen pb-24">
       {/* Closed banner */}
       {hours && !hours.isOpen && (
         <div className="border-b border-yellow-500/20 bg-yellow-500/8 px-4 py-3">
@@ -63,7 +72,7 @@ export function MenuSection({ items }: { items: MenuItemData[] }) {
                 The Menu
               </h1>
               <p className="mt-4 text-lg leading-8 text-[#888888]">
-                Filter by category, add to cart, and continue to checkout.
+                Tap any item to customise and add to your order.
               </p>
             </div>
 
@@ -138,12 +147,44 @@ export function MenuSection({ items }: { items: MenuItemData[] }) {
           <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
             {filtered.map((item, i) => (
               <Reveal key={item.id} delay={(i % 4) * 70}>
-                <MenuCard item={item} restaurantOpen={hours?.isOpen ?? true} />
+                <MenuCard
+                  item={item}
+                  restaurantOpen={hours?.isOpen ?? true}
+                  onOpen={setSelectedItem}
+                />
               </Reveal>
             ))}
           </div>
         )}
       </div>
+
+      {/* Item detail modal */}
+      {selectedItem && (
+        <ItemDetailModal
+          item={selectedItem}
+          onClose={() => setSelectedItem(null)}
+          restaurantOpen={hours?.isOpen ?? true}
+        />
+      )}
+
+      {/* Sticky mobile cart bar */}
+      {cartCount > 0 && (
+        <div className="fixed bottom-0 left-0 right-0 z-50 border-t border-white/10 bg-[#0d0d0d]/95 p-3 backdrop-blur-md sm:hidden">
+          <button
+            onClick={() => setCartOpen(true)}
+            className="flex w-full items-center justify-between rounded-xl bg-[#e8531a] px-5 py-3.5 font-bold text-[#0d0d0d] transition active:scale-[0.98] ember-glow"
+          >
+            <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[#0d0d0d]/25 text-xs font-bold">
+              {cartCount}
+            </span>
+            <span className="flex items-center gap-2 text-sm uppercase tracking-wider">
+              <ShoppingBag className="h-4 w-4" />
+              View Cart
+            </span>
+            <span className="font-data text-sm">{formatPrice(cartSubtotal)}</span>
+          </button>
+        </div>
+      )}
     </section>
   );
 }

@@ -71,6 +71,7 @@ export function AdminView() {
   const [nlLoaded, setNlLoaded] = useState(false);
   const [subscribers, setSubscribers] = useState<Subscriber[]>([]);
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
+  const [configuredFrom, setConfiguredFrom] = useState<string | null>(null);
   const [nlForm, setNlForm] = useState({ subject: '', body: '' });
   const [sending, setSending] = useState(false);
 
@@ -105,6 +106,7 @@ export function AdminView() {
       if (res.ok) {
         setSubscribers(data.subscribers ?? []);
         setCampaigns(data.campaigns ?? []);
+        setConfiguredFrom(data.configuredFrom ?? null);
         setNlLoaded(true);
       } else {
         showToast(data.error ?? 'Failed to load newsletter data', 'err');
@@ -518,6 +520,23 @@ export function AdminView() {
                       {campaigns.reduce((s, c) => s + c.recipientCount, 0)}
                     </p>
                   </div>
+                </div>
+
+                {/* Sender address indicator */}
+                <div className={`flex items-center gap-2 rounded-lg border px-4 py-3 text-sm ${
+                  configuredFrom
+                    ? 'border-green-500/20 bg-green-500/5 text-green-400'
+                    : 'border-red-500/20 bg-red-500/5 text-red-400'
+                }`}>
+                  <Mail className="h-4 w-4 shrink-0" />
+                  {configuredFrom ? (
+                    <span>Sending from: <span className="font-mono">{configuredFrom}</span></span>
+                  ) : (
+                    <span>
+                      <strong>NEWSLETTER_FROM not set</strong> — using fallback address.
+                      Add <span className="font-mono">NEWSLETTER_FROM=you@yourdomain.com</span> to Vercel env vars.
+                    </span>
+                  )}
                 </div>
 
                 <div className="grid gap-8 lg:grid-cols-5">

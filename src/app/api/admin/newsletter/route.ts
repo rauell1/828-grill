@@ -47,7 +47,9 @@ export async function GET() {
     return true;
   }).sort((a, b) => (a.name ?? a.email).localeCompare(b.name ?? b.email));
 
-  return NextResponse.json({ subscribers, campaigns });
+  const configuredFrom = process.env.NEWSLETTER_FROM ?? null;
+
+  return NextResponse.json({ subscribers, campaigns, configuredFrom });
 }
 
 export async function POST(req: Request) {
@@ -98,7 +100,13 @@ export async function POST(req: Request) {
       subject,
       html: buildHtml(subject, body, s.name),
     }));
-    await resend.batch.send(batch);
+    const result = await resend.batch.send(batch);
+    if (result.error) {
+      return NextResponse.json(
+        { error: `Resend error: ${result.error.message}`, from: FROM },
+        { status: 502 }
+      );
+    }
     sent += batch.length;
   }
 

@@ -1,0 +1,857 @@
+You are rebuilding the 828 Grill website. You already have the Next.js foundation (Site 3). You need to upgrade it by merging in the full component architecture, stores, pages, and data from a second codebase (ZIP 2). Follow every instruction below exactly. Do not improvise.
+
+WHAT YOU HAVE (Site 3 — keep all of this)
+
+Next.js 14 App Router framework ✅
+Brand voice: "Fire. Smoke. Craft." tagline ✅
+Hero with full-bleed image, ember overlay, Bebas Neue display font ✅
+Scrolling marquee ticker (HAND-SMASHED PATTIES · SLOW-SMOKED DAILY etc.) ✅
+SEO metadata in layout.tsx ✅
+Color tokens: #0D0D0D bg, #1A1A1A cards, #E8531A accent, #F5F0E8 text, #888888 muted ✅
+Vercel deployment target ✅
+
+Do not remove or replace any of the above. Everything below is additive or a targeted upgrade.
+
+WHAT YOU MUST ADD / UPGRADE
+STEP 1 — Install dependencies
+Add these to package.json dependencies and run install:
+zustand
+lucide-react
+@stripe/stripe-js
+@stripe/react-stripe-js
+
+STEP 2 — Fix the hero headline typo
+In the Home page hero section, find the headline. It currently reads TASTETHE FIRE (missing space). Fix it to read:
+TASTE THE FIRE
+
+STEP 3 — Create the cart store with localStorage persistence
+Create src/store/cart.ts (or store/cart.ts in your project structure):
+typescriptimport { create } from 'zustand';
+import { persist } from 'zustand/middleware';
+
+export interface CartItem {
+  menuItemId: string;
+  name: string;
+  price: number;
+  imageUrl: string;
+  quantity: number;
+}
+
+interface CartStore {
+  items: CartItem[];
+  addItem: (item: Omit<CartItem, 'quantity'>) => void;
+  removeItem: (menuItemId: string) => void;
+  updateQuantity: (menuItemId: string, quantity: number) => void;
+  clearCart: () => void;
+  getTotal: () => number;
+  getItemCount: () => number;
+}
+
+export const useCartStore = create<CartStore>()(
+  persist(
+    (set, get) => ({
+      items: [],
+      addItem: (item) => {
+        set((state) => {
+          const existing = state.items.find(i => i.menuItemId === item.menuItemId);
+          if (existing) {
+            return { items: state.items.map(i => i.menuItemId === item.menuItemId ? { ...i, quantity: i.quantity + 1 } : i) };
+          }
+          return { items: [...state.items, { ...item, quantity: 1 }] };
+        });
+      },
+      removeItem: (menuItemId) => set((state) => ({ items: state.items.filter(i => i.menuItemId !== menuItemId) })),
+      updateQuantity: (menuItemId, quantity) => {
+        if (quantity <= 0) { get().removeItem(menuItemId); return; }
+        set((state) => ({ items: state.items.map(i => i.menuItemId === menuItemId ? { ...i, quantity } : i) }));
+      },
+      clearCart: () => set({ items: [] }),
+      getTotal: () => get().items.reduce((t, i) => t + i.price * i.quantity, 0),
+      getItemCount: () => get().items.reduce((c, i) => c + i.quantity, 0),
+    }),
+    { name: '828-grill-cart' }
+  )
+);
+
+STEP 4 — Create the auth store
+Create src/store/auth.ts:
+typescriptimport { create } from 'zustand';
+import { persist } from 'zustand/middleware';
+
+export interface OrderItem { name: string; price: number; quantity: number; }
+export interface OrderRecord { id: string; items: OrderItem[]; total: number; status: string; createdAt: string; }
+export interface User { id: string; name: string; email: string; phone?: string; address?: string; orders?: OrderRecord[]; }
+
+interface AuthStore {
+  user: User | null;
+  isAuthenticated: boolean;
+  login: (email: string, password: string) => Promise<boolean>;
+  register: (data: { name: string; email: string; password: string; phone?: string; address?: string }) => Promise<boolean>;
+  logout: () => void;
+  addOrder: (order: OrderRecord) => void;
+}
+
+export const useAuthStore = create<AuthStore>()(
+  persist(
+    (set, get) => ({
+      user: null,
+      isAuthenticated: false,
+      login: async (email, password) => {
+        await new Promise(r => setTimeout(r, 600));
+        const stored = JSON.parse(localStorage.getItem('828-grill-users') || '[]');
+        const found = stored.find((u: any) => u.email === email && u.password === password);
+        if (found) {
+          const { password: _, ...user } = found;
+          set({ user, isAuthenticated: true });
+          return true;
+        }
+        return false;
+      },
+      register: async (data) => {
+        await new Promise(r => setTimeout(r, 600));
+        const stored = JSON.parse(localStorage.getItem('828-grill-users') || '[]');
+        if (stored.find((u: any) => u.email === data.email)) return false;
+        const newUser = { ...data, id: `usr_${Date.now()}`, orders: [] };
+        stored.push(newUser);
+        localStorage.setItem('828-grill-users', JSON.stringify(stored));
+        const { password: _, ...user } = newUser;
+        set({ user, isAuthenticated: true });
+        return true;
+      },
+      logout: () => set({ user: null, isAuthenticated: false }),
+      addOrder: (order) => set((state) => {
+        if (!state.user) return state;
+        const updatedUser = { ...state.user, orders: [order, ...(state.user.orders || [])] };
+        const stored = JSON.parse(localStorage.getItem('828-grill-users') || '[]');
+        const idx = stored.findIndex((u: any) => u.id === updatedUser.id);
+        if (idx >= 0) { stored[idx] = { ...stored[idx], orders: updatedUser.orders }; localStorage.setItem('828-grill-users', JSON.stringify(stored)); }
+        return { user: updatedUser };
+      }),
+    }),
+    { name: '828-grill-auth', partialize: (s) => ({ user: s.user, isAuthenticated: s.isAuthenticated }) }
+  )
+);
+
+STEP 5 — Create the menu data file
+Create src/data/menu.ts:
+typescriptexport interface MenuItem {
+  id: string; name: string; description: string; price: number;
+  category: 'Burgers' | 'Sides' | 'Drinks' | 'Combos';
+  imageUrl: string; available: boolean; popular?: boolean;
+}
+
+export const menuItems: MenuItem[] = [
+  { id: 'burger-1', name: 'Classic Smash Burger', description: 'Double smash patties, American cheese, pickles, grilled onions, 828 secret sauce on a toasted brioche bun.', price: 12.99, category: 'Burgers', imageUrl: '/menu/burger-classic.jpg', available: true, popular: true },
+  { id: 'burger-2', name: 'Smoked Brisket Burger', description: '12-hour smoked brisket patty, pepper jack cheese, crispy bacon, smoked gremolata, charcoal bun.', price: 15.99, category: 'Burgers', imageUrl: '/menu/burger-smoked.jpg', available: true, popular: true },
+  { id: 'burger-3', name: 'Truffle Mushroom Burger', description: 'Wagyu blend patty, sautéed wild mushrooms, truffle aioli, aged gruyère, arugula.', price: 17.99, category: 'Burgers', imageUrl: '/menu/burger-classic.jpg', available: true },
+  { id: 'burger-4', name: 'Spicy Jalapeño Inferno', description: 'Ghost pepper patty, habanero cheese, pickled jalapeños, chipotle mayo, fire-grilled bun.', price: 14.99, category: 'Burgers', imageUrl: '/menu/burger-smoked.jpg', available: true },
+  { id: 'burger-5', name: 'BBQ Bacon Deluxe', description: 'Smoked beef patty, thick-cut bacon, cheddar, crispy onion strings, Texas-style BBQ sauce.', price: 14.49, category: 'Burgers', imageUrl: '/menu/burger-classic.jpg', available: true, popular: true },
+  { id: 'side-1', name: 'Crispy Smoke Fries', description: 'Hand-cut fries tossed in smoked paprika and sea salt. Crispy outside, fluffy inside.', price: 5.99, category: 'Sides', imageUrl: '/menu/sides-fries.jpg', available: true, popular: true },
+  { id: 'side-2', name: 'Loaded Cheese Fries', description: 'Golden fries topped with melted cheddar, bacon bits, jalapeños, and sour cream drizzle.', price: 8.99, category: 'Sides', imageUrl: '/menu/sides-fries.jpg', available: true },
+  { id: 'side-3', name: 'Grilled Corn Elote', description: 'Char-grilled corn on the cob with cotija cheese, chili powder, lime, and crema.', price: 6.49, category: 'Sides', imageUrl: '/menu/sides-fries.jpg', available: true },
+  { id: 'drink-1', name: 'Vanilla Ember Shake', description: 'Thick vanilla bean milkshake with a hint of smoked cinnamon, topped with whipped cream.', price: 7.99, category: 'Drinks', imageUrl: '/menu/drinks-shake.jpg', available: true, popular: true },
+  { id: 'drink-2', name: 'Bourbon Cherry Shake', description: 'Rich cherry shake with a splash of bourbon, cherry garnish, dark chocolate drizzle.', price: 9.49, category: 'Drinks', imageUrl: '/menu/drinks-shake.jpg', available: true },
+  { id: 'drink-3', name: 'Craft Root Beer', description: 'House-brewed root beer served over hand-cut ice. Classic, refreshing, and bold.', price: 4.49, category: 'Drinks', imageUrl: '/menu/drinks-shake.jpg', available: true },
+  { id: 'drink-4', name: 'Smoked Lemonade', description: 'Fresh-squeezed lemonade with applewood smoke infusion, honey, and mint.', price: 5.99, category: 'Drinks', imageUrl: '/menu/drinks-shake.jpg', available: true },
+  { id: 'combo-1', name: 'Mega Grill Combo', description: 'Classic Smash Burger + Smoke Fries + Vanilla Ember Shake. The ultimate 828 experience.', price: 22.99, category: 'Combos', imageUrl: '/menu/combos-mega.jpg', available: true, popular: true },
+  { id: 'combo-2', name: 'Brisket Feast', description: 'Smoked Brisket Burger + Loaded Cheese Fries + Bourbon Cherry Shake.', price: 29.99, category: 'Combos', imageUrl: '/menu/combos-mega.jpg', available: true },
+  { id: 'combo-3', name: 'Family Fire Pack', description: '4 Classic Smash Burgers + 2 Large Smoke Fries + 4 Craft Root Beers. Feed the whole crew.', price: 59.99, category: 'Combos', imageUrl: '/menu/combos-mega.jpg', available: true },
+  { id: 'combo-4', name: 'Date Night Duo', description: '2 Truffle Mushroom Burgers + Grilled Corn Elote + 2 Smoked Lemonades.', price: 44.99, category: 'Combos', imageUrl: '/menu/combos-mega.jpg', available: true },
+];
+
+STEP 6 — Upgrade the Navbar
+Replace the existing Navbar component entirely with this. It uses the cart store for the live badge count, the auth store for sign-in state, and has a working mobile hamburger menu:
+typescript'use client';
+import { useState } from 'react';
+import Link from 'next/link';
+import { usePathname } from 'next/navigation';
+import { ShoppingBag, User, Menu as MenuIcon, X } from 'lucide-react';
+import { useCartStore } from '@/store/cart';
+import { useAuthStore } from '@/store/auth';
+
+export default function Navbar() {
+  const [isOpen, setIsOpen] = useState(false);
+  const pathname = usePathname();
+  const itemCount = useCartStore(s => s.getItemCount());
+  const isAuthenticated = useAuthStore(s => s.isAuthenticated);
+
+  const navLinks = [{ path: '/', label: 'Home' }, { path: '/menu', label: 'Menu' }];
+  const isActive = (path: string) => path === '/' ? pathname === '/' : pathname.startsWith(path);
+
+  return (
+    <nav className="fixed top-0 left-0 right-0 z-50 bg-[#0D0D0D]/90 backdrop-blur-xl border-b border-white/5">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="flex items-center justify-between h-16 sm:h-20">
+          <Link href="/" className="font-display text-3xl sm:text-4xl text-[#F5F0E8]">
+            828 <span className="text-[#E8531A]">GRILL</span>
+          </Link>
+          <div className="hidden md:flex items-center gap-8">
+            {navLinks.map(link => (
+              <Link key={link.path} href={link.path}
+                className={`text-sm tracking-wider uppercase transition-colors ${isActive(link.path) ? 'text-[#E8531A]' : 'text-[#888] hover:text-[#F5F0E8]'}`}>
+                {link.label}
+              </Link>
+            ))}
+          </div>
+          <div className="flex items-center gap-3 sm:gap-4">
+            <Link href="/cart" className="relative p-2 text-[#888] hover:text-[#F5F0E8] transition-colors">
+              <ShoppingBag className="w-5 h-5 sm:w-6 sm:h-6" />
+              {itemCount > 0 && (
+                <span className="absolute -top-1 -right-1 bg-[#E8531A] text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">
+                  {itemCount}
+                </span>
+              )}
+            </Link>
+            {isAuthenticated ? (
+              <Link href="/account" className="p-2 text-[#888] hover:text-[#F5F0E8] transition-colors">
+                <User className="w-5 h-5 sm:w-6 sm:h-6" />
+              </Link>
+            ) : (
+              <Link href="/auth/login"
+                className="hidden sm:inline-flex items-center px-5 py-2 bg-[#E8531A] hover:bg-[#E8531A]/90 text-white text-sm font-semibold rounded-lg transition-all">
+                Sign In
+              </Link>
+            )}
+            <button onClick={() => setIsOpen(!isOpen)} className="md:hidden p-2 text-[#888] hover:text-[#F5F0E8]">
+              {isOpen ? <X className="w-6 h-6" /> : <MenuIcon className="w-6 h-6" />}
+            </button>
+          </div>
+        </div>
+      </div>
+      {isOpen && (
+        <div className="md:hidden bg-[#0D0D0D]/98 backdrop-blur-xl border-t border-white/5">
+          <div className="px-4 py-4 space-y-1">
+            {navLinks.map(link => (
+              <Link key={link.path} href={link.path} onClick={() => setIsOpen(false)}
+                className={`block px-4 py-3 rounded-lg text-sm tracking-wider uppercase transition-colors ${isActive(link.path) ? 'text-[#E8531A] bg-[#E8531A]/10' : 'text-[#888] hover:text-[#F5F0E8] hover:bg-white/5'}`}>
+                {link.label}
+              </Link>
+            ))}
+            <Link href="/cart" onClick={() => setIsOpen(false)}
+              className="flex items-center gap-3 px-4 py-3 rounded-lg text-sm text-[#888] hover:text-[#F5F0E8] hover:bg-white/5">
+              <ShoppingBag className="w-5 h-5" /> Cart ({itemCount})
+            </Link>
+            {isAuthenticated ? (
+              <Link href="/account" onClick={() => setIsOpen(false)}
+                className="flex items-center gap-3 px-4 py-3 rounded-lg text-sm text-[#888] hover:text-[#F5F0E8] hover:bg-white/5">
+                <User className="w-5 h-5" /> My Account
+              </Link>
+            ) : (
+              <Link href="/auth/login" onClick={() => setIsOpen(false)}
+                className="block px-4 py-3 bg-[#E8531A] text-white text-sm font-semibold rounded-lg text-center">
+                Sign In
+              </Link>
+            )}
+          </div>
+        </div>
+      )}
+    </nav>
+  );
+}
+
+STEP 7 — Create the MenuItemCard component
+Create components/MenuItemCard.tsx. It shows a Popular badge, hover-reveal add button, and an animated "Added ✓" confirmation state:
+typescript'use client';
+import { useState } from 'react';
+import Image from 'next/image';
+import { Plus, Star } from 'lucide-react';
+import { useCartStore } from '@/store/cart';
+import { MenuItem } from '@/data/menu';
+
+export default function MenuItemCard({ item }: { item: MenuItem }) {
+  const addItem = useCartStore(s => s.addItem);
+  const [added, setAdded] = useState(false);
+
+  const handleAdd = () => {
+    addItem({ menuItemId: item.id, name: item.name, price: item.price, imageUrl: item.imageUrl });
+    setAdded(true);
+    setTimeout(() => setAdded(false), 1200);
+  };
+
+  return (
+    <div className="group bg-[#1A1A1A] rounded-2xl overflow-hidden border border-white/5 hover:border-[#E8531A]/30 transition-all duration-300 hover:shadow-xl hover:shadow-black/30">
+      <div className="relative overflow-hidden aspect-[4/3]">
+        <Image src={item.imageUrl} alt={item.name} fill className="object-cover group-hover:scale-110 transition-transform duration-700" />
+        <div className="absolute inset-0 bg-gradient-to-t from-[#1A1A1A] via-transparent to-transparent" />
+        {item.popular && (
+          <div className="absolute top-3 left-3 flex items-center gap-1 bg-[#E8531A] text-white px-3 py-1 rounded-full text-xs font-semibold">
+            <Star className="w-3 h-3 fill-white" /> Popular
+          </div>
+        )}
+        <button onClick={handleAdd}
+          className={`absolute bottom-3 right-3 p-3 rounded-full transition-all duration-300 ${added ? 'bg-green-500 scale-110' : 'bg-[#E8531A] opacity-0 group-hover:opacity-100'}`}
+          aria-label={`Add ${item.name} to cart`}>
+          {added ? <span className="text-white text-sm font-bold">✓</span> : <Plus className="w-5 h-5 text-white" />}
+        </button>
+      </div>
+      <div className="p-5">
+        <div className="flex items-start justify-between gap-2 mb-2">
+          <h3 className="font-display text-xl text-[#F5F0E8] leading-tight">{item.name}</h3>
+          <span className="font-display text-xl text-[#E8531A] flex-shrink-0">${item.price.toFixed(2)}</span>
+        </div>
+        <p className="text-[#888] text-sm leading-relaxed line-clamp-2">{item.description}</p>
+        <button onClick={handleAdd}
+          className={`mt-4 w-full py-2.5 rounded-xl text-sm font-semibold transition-all duration-300 ${added ? 'bg-green-500/20 text-green-400 border border-green-500/30' : 'bg-[#E8531A] hover:bg-[#E8531A]/90 text-white'}`}>
+          {added ? '✓ Added to Cart' : 'Add to Cart'}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+STEP 8 — Create the Menu page
+Create app/menu/page.tsx. Sticky category filter bar, emoji icons per category, item count label, animated grid:
+typescript'use client';
+import { useState } from 'react';
+import { Flame } from 'lucide-react';
+import { menuItems } from '@/data/menu';
+import MenuItemCard from '@/components/MenuItemCard';
+
+const categories = ['All', 'Burgers', 'Sides', 'Drinks', 'Combos'] as const;
+const categoryEmoji: Record<string, string> = { Burgers: '🍔', Sides: '🍟', Drinks: '🥤', Combos: '🔥' };
+
+export default function MenuPage() {
+  const [active, setActive] = useState<string>('All');
+  const filtered = active === 'All' ? menuItems : menuItems.filter(i => i.category === active);
+
+  return (
+    <div className="min-h-screen pt-20 sm:pt-24">
+      <div className="bg-[#141414] border-b border-white/5">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 sm:py-20">
+          <div className="flex items-center gap-3 mb-4">
+            <Flame className="w-5 h-5 text-[#E8531A]" />
+            <span className="text-[#E8531A] text-sm font-semibold tracking-wider uppercase">Order Online</span>
+          </div>
+          <h1 className="font-display text-5xl sm:text-7xl text-[#F5F0E8]">OUR MENU</h1>
+          <p className="text-[#888] text-lg mt-3 max-w-xl">Handcrafted, flame-grilled, and built to order. Choose your fire.</p>
+        </div>
+      </div>
+      <div className="sticky top-16 sm:top-20 z-40 bg-[#0D0D0D]/95 backdrop-blur-xl border-b border-white/5">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center gap-2 py-4 overflow-x-auto">
+            {categories.map(cat => (
+              <button key={cat} onClick={() => setActive(cat)}
+                className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold whitespace-nowrap transition-all ${active === cat ? 'bg-[#E8531A] text-white shadow-lg shadow-[#E8531A]/25' : 'bg-[#1A1A1A] text-[#888] hover:text-[#F5F0E8] hover:bg-[#222]'}`}>
+                {categoryEmoji[cat] && <span>{categoryEmoji[cat]}</span>} {cat}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 sm:py-14">
+        <div className="mb-8">
+          <h2 className="font-display text-3xl text-[#F5F0E8]">{active === 'All' ? 'Full Menu' : active}</h2>
+          <p className="text-[#888] text-sm mt-1">{filtered.length} item{filtered.length !== 1 ? 's' : ''} available</p>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+          {filtered.map(item => <MenuItemCard key={item.id} item={item} />)}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+STEP 9 — Create the Cart page
+Create app/cart/page.tsx. Shows items with thumbnail, quantity +/- controls, trash icon, delivery fee, 7% tax, grand total, and routes to checkout or login depending on auth state:
+typescript'use client';
+import Link from 'next/link';
+import Image from 'next/image';
+import { Trash2, Plus, Minus, ShoppingBag, ArrowLeft } from 'lucide-react';
+import { useCartStore } from '@/store/cart';
+import { useAuthStore } from '@/store/auth';
+
+export default function CartPage() {
+  const items = useCartStore(s => s.items);
+  const updateQuantity = useCartStore(s => s.updateQuantity);
+  const removeItem = useCartStore(s => s.removeItem);
+  const total = useCartStore(s => s.getTotal());
+  const isAuthenticated = useAuthStore(s => s.isAuthenticated);
+
+  const deliveryFee = 3.99;
+  const tax = total * 0.07;
+  const grandTotal = total + deliveryFee + tax;
+
+  if (items.length === 0) return (
+    <div className="min-h-screen pt-20 sm:pt-24 flex items-center justify-center px-4">
+      <div className="text-center">
+        <div className="w-20 h-20 bg-[#1A1A1A] rounded-full flex items-center justify-center mx-auto mb-6">
+          <ShoppingBag className="w-10 h-10 text-[#888]" />
+        </div>
+        <h1 className="font-display text-4xl text-[#F5F0E8] mb-3">Cart's Empty</h1>
+        <p className="text-[#888] text-lg mb-8">Add some fire to your order.</p>
+        <Link href="/menu" className="inline-flex items-center gap-2 bg-[#E8531A] hover:bg-[#E8531A]/90 text-white px-8 py-4 rounded-xl font-semibold transition-all">
+          Browse Menu
+        </Link>
+      </div>
+    </div>
+  );
+
+  return (
+    <div className="min-h-screen pt-20 sm:pt-24">
+      <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-10 sm:py-14">
+        <div className="flex items-center gap-3 mb-2">
+          <Link href="/menu" className="text-[#888] hover:text-[#F5F0E8] transition-colors"><ArrowLeft className="w-5 h-5" /></Link>
+          <h1 className="font-display text-4xl sm:text-5xl text-[#F5F0E8]">Your Cart</h1>
+        </div>
+        <p className="text-[#888] mb-8">{items.length} item{items.length !== 1 ? 's' : ''} ready to fire up</p>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 lg:gap-12">
+          <div className="lg:col-span-2 space-y-4">
+            {items.map(item => (
+              <div key={item.menuItemId} className="bg-[#1A1A1A] rounded-2xl p-4 sm:p-5 border border-white/5 flex gap-4 sm:gap-6 items-center">
+                <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-xl overflow-hidden flex-shrink-0 relative">
+                  <Image src={item.imageUrl} alt={item.name} fill className="object-cover" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <h3 className="font-display text-lg text-[#F5F0E8]">{item.name}</h3>
+                  <p className="text-[#E8531A] font-semibold">${item.price.toFixed(2)}</p>
+                </div>
+                <div className="flex items-center gap-2 sm:gap-3">
+                  <div className="flex items-center bg-[#0D0D0D] rounded-lg border border-white/10">
+                    <button onClick={() => updateQuantity(item.menuItemId, item.quantity - 1)} className="p-2 sm:p-2.5 text-[#888] hover:text-[#F5F0E8] transition-colors"><Minus className="w-4 h-4" /></button>
+                    <span className="px-3 sm:px-4 text-sm font-semibold text-[#F5F0E8] min-w-[2rem] text-center">{item.quantity}</span>
+                    <button onClick={() => updateQuantity(item.menuItemId, item.quantity + 1)} className="p-2 sm:p-2.5 text-[#888] hover:text-[#F5F0E8] transition-colors"><Plus className="w-4 h-4" /></button>
+                  </div>
+                  <button onClick={() => removeItem(item.menuItemId)} className="p-2 text-[#888] hover:text-red-500 transition-colors"><Trash2 className="w-5 h-5" /></button>
+                </div>
+                <div className="text-right min-w-[4rem]">
+                  <p className="font-semibold text-[#F5F0E8]">${(item.price * item.quantity).toFixed(2)}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+          <div className="lg:col-span-1">
+            <div className="bg-[#1A1A1A] rounded-2xl p-6 border border-white/5 sticky top-40">
+              <h3 className="font-display text-xl text-[#F5F0E8] mb-5">Order Summary</h3>
+              <div className="space-y-3 text-sm">
+                <div className="flex justify-between text-[#888]"><span>Subtotal</span><span>${total.toFixed(2)}</span></div>
+                <div className="flex justify-between text-[#888]"><span>Delivery Fee</span><span>${deliveryFee.toFixed(2)}</span></div>
+                <div className="flex justify-between text-[#888]"><span>Tax (7%)</span><span>${tax.toFixed(2)}</span></div>
+                <div className="border-t border-white/10 pt-3 flex justify-between font-semibold text-[#F5F0E8]">
+                  <span>Total</span><span className="text-lg">${grandTotal.toFixed(2)}</span>
+                </div>
+              </div>
+              <Link href={isAuthenticated ? '/checkout' : '/auth/login'}
+                className="block w-full mt-6 py-4 rounded-xl text-center bg-[#E8531A] hover:bg-[#E8531A]/90 text-white font-semibold transition-all">
+                {isAuthenticated ? 'Proceed to Checkout' : 'Sign In to Checkout'}
+              </Link>
+              <Link href="/menu" className="flex items-center justify-center gap-2 mt-3 text-[#888] hover:text-[#E8531A] text-sm transition-colors">
+                <ArrowLeft className="w-4 h-4" /> Continue Shopping
+              </Link>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+STEP 10 — Create the two-step Checkout page
+Create app/checkout/page.tsx. Step 1 collects delivery info, step 2 shows payment fields (Stripe simulation with a clear demo notice). Pre-fills phone and address from the user's saved profile. Calculates delivery fee + tax + grand total:
+typescript'use client';
+import { useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { CreditCard, Lock, ArrowLeft, MapPin, Phone } from 'lucide-react';
+import { useCartStore } from '@/store/cart';
+import { useAuthStore } from '@/store/auth';
+
+export default function CheckoutPage() {
+  const router = useRouter();
+  const items = useCartStore(s => s.items);
+  const total = useCartStore(s => s.getTotal());
+  const clearCart = useCartStore(s => s.clearCart);
+  const user = useAuthStore(s => s.user);
+  const addOrder = useAuthStore(s => s.addOrder);
+
+  const [step, setStep] = useState<'info' | 'payment'>('info');
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [formData, setFormData] = useState({
+    phone: user?.phone || '', address: user?.address || '', notes: '',
+    cardNumber: '', cardName: '', expiry: '', cvc: '',
+  });
+
+  const deliveryFee = 3.99;
+  const tax = total * 0.07;
+  const grandTotal = total + deliveryFee + tax;
+
+  const handleChange = (field: string, value: string) => setFormData(p => ({ ...p, [field]: value }));
+
+  const handlePayment = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsProcessing(true);
+    await new Promise(r => setTimeout(r, 2000));
+    const orderId = `ORD-${Date.now().toString().slice(-8)}`;
+    addOrder({ id: orderId, items: items.map(i => ({ name: i.name, price: i.price, quantity: i.quantity })), total: grandTotal, status: 'confirmed', createdAt: new Date().toISOString() });
+    clearCart();
+    router.push(`/order/${orderId}`);
+  };
+
+  if (!user) { router.push('/auth/login'); return null; }
+  if (items.length === 0) { router.push('/menu'); return null; }
+
+  return (
+    <div className="min-h-screen pt-20 sm:pt-24">
+      <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-10 sm:py-14">
+        <div className="flex items-center gap-3 mb-2">
+          <button onClick={() => step === 'payment' ? setStep('info') : router.push('/cart')} className="text-[#888] hover:text-[#F5F0E8] transition-colors"><ArrowLeft className="w-5 h-5" /></button>
+          <h1 className="font-display text-4xl sm:text-5xl text-[#F5F0E8]">Checkout</h1>
+        </div>
+        <div className="flex items-center gap-4 my-8">
+          {['Delivery Info', 'Payment'].map((label, i) => (
+            <div key={label} className="flex items-center gap-2">
+              <div className={`flex items-center gap-2 text-sm ${(i === 0 ? step === 'info' : step === 'payment') ? 'text-[#E8531A]' : 'text-[#888]'}`}>
+                <div className={`w-8 h-8 rounded-full flex items-center justify-center font-semibold ${(i === 0 ? step === 'info' : step === 'payment') ? 'bg-[#E8531A] text-white' : 'bg-[#1A1A1A] text-[#888]'}`}>{i + 1}</div>
+                <span className="hidden sm:inline">{label}</span>
+              </div>
+              {i === 0 && <div className="w-12 h-px bg-white/10 ml-2" />}
+            </div>
+          ))}
+        </div>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 lg:gap-12">
+          <div className="lg:col-span-2">
+            {step === 'info' ? (
+              <form onSubmit={(e) => { e.preventDefault(); setStep('payment'); }} className="bg-[#1A1A1A] rounded-2xl p-6 border border-white/5 space-y-5">
+                <h2 className="font-display text-2xl text-[#F5F0E8]">Delivery Details</h2>
+                <div className="relative">
+                  <label className="block text-sm text-[#888] mb-2">Phone Number</label>
+                  <Phone className="absolute left-3 top-[2.4rem] w-5 h-5 text-[#888]" />
+                  <input type="tel" value={formData.phone} onChange={e => handleChange('phone', e.target.value)} required placeholder="(555) 123-4567"
+                    className="w-full bg-[#0D0D0D] border border-white/10 rounded-xl pl-11 pr-4 py-3 text-[#F5F0E8] placeholder-[#555] focus:border-[#E8531A] focus:outline-none transition-colors" />
+                </div>
+                <div className="relative">
+                  <label className="block text-sm text-[#888] mb-2">Delivery Address</label>
+                  <MapPin className="absolute left-3 top-[2.4rem] w-5 h-5 text-[#888]" />
+                  <input type="text" value={formData.address} onChange={e => handleChange('address', e.target.value)} required placeholder="123 Street, City, State ZIP"
+                    className="w-full bg-[#0D0D0D] border border-white/10 rounded-xl pl-11 pr-4 py-3 text-[#F5F0E8] placeholder-[#555] focus:border-[#E8531A] focus:outline-none transition-colors" />
+                </div>
+                <div>
+                  <label className="block text-sm text-[#888] mb-2">Order Notes (Optional)</label>
+                  <textarea value={formData.notes} onChange={e => handleChange('notes', e.target.value)} rows={3} placeholder="Any special instructions?"
+                    className="w-full bg-[#0D0D0D] border border-white/10 rounded-xl px-4 py-3 text-[#F5F0E8] placeholder-[#555] focus:border-[#E8531A] focus:outline-none transition-colors resize-none" />
+                </div>
+                <button type="submit" className="w-full py-4 rounded-xl bg-[#E8531A] hover:bg-[#E8531A]/90 text-white font-semibold transition-all">Continue to Payment</button>
+              </form>
+            ) : (
+              <form onSubmit={handlePayment} className="bg-[#1A1A1A] rounded-2xl p-6 border border-white/5 space-y-5">
+                <div>
+                  <h2 className="font-display text-2xl text-[#F5F0E8] mb-1">Payment Details</h2>
+                  <div className="flex items-center gap-2 text-[#888] text-sm"><Lock className="w-4 h-4" /><span>Secured by Stripe · 256-bit encryption</span></div>
+                </div>
+                <div className="relative">
+                  <label className="block text-sm text-[#888] mb-2">Card Number</label>
+                  <CreditCard className="absolute left-3 top-[2.4rem] w-5 h-5 text-[#888]" />
+                  <input type="text" value={formData.cardNumber} placeholder="4242 4242 4242 4242" required minLength={16}
+                    onChange={e => { const v = e.target.value.replace(/\D/g,'').slice(0,16); handleChange('cardNumber', v.replace(/(\d{4})/g,'$1 ').trim()); }}
+                    className="w-full bg-[#0D0D0D] border border-white/10 rounded-xl pl-11 pr-4 py-3 text-[#F5F0E8] placeholder-[#555] focus:border-[#E8531A] focus:outline-none transition-colors font-mono" />
+                </div>
+                <div>
+                  <label className="block text-sm text-[#888] mb-2">Cardholder Name</label>
+                  <input type="text" value={formData.cardName} placeholder={user.name} required onChange={e => handleChange('cardName', e.target.value)}
+                    className="w-full bg-[#0D0D0D] border border-white/10 rounded-xl px-4 py-3 text-[#F5F0E8] placeholder-[#555] focus:border-[#E8531A] focus:outline-none transition-colors" />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm text-[#888] mb-2">Expiry</label>
+                    <input type="text" value={formData.expiry} placeholder="MM/YY" required maxLength={5}
+                      onChange={e => { let v = e.target.value.replace(/\D/g,'').slice(0,4); if (v.length >= 2) v = v.slice(0,2)+'/'+v.slice(2); handleChange('expiry', v); }}
+                      className="w-full bg-[#0D0D0D] border border-white/10 rounded-xl px-4 py-3 text-[#F5F0E8] placeholder-[#555] focus:border-[#E8531A] focus:outline-none transition-colors font-mono" />
+                  </div>
+                  <div>
+                    <label className="block text-sm text-[#888] mb-2">CVC</label>
+                    <input type="text" value={formData.cvc} placeholder="123" required maxLength={3}
+                      onChange={e => handleChange('cvc', e.target.value.replace(/\D/g,'').slice(0,3))}
+                      className="w-full bg-[#0D0D0D] border border-white/10 rounded-xl px-4 py-3 text-[#F5F0E8] placeholder-[#555] focus:border-[#E8531A] focus:outline-none transition-colors font-mono" />
+                  </div>
+                </div>
+                <button type="submit" disabled={isProcessing}
+                  className="w-full py-4 rounded-xl bg-[#E8531A] hover:bg-[#E8531A]/90 text-white font-semibold transition-all disabled:opacity-70 flex items-center justify-center gap-2">
+                  {isProcessing ? <><div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />Processing...</> : <><Lock className="w-4 h-4" />Pay ${grandTotal.toFixed(2)}</>}
+                </button>
+                <p className="text-[#888] text-xs text-center">Demo mode — use any card details to simulate payment.</p>
+              </form>
+            )}
+          </div>
+          <div className="lg:col-span-1">
+            <div className="bg-[#1A1A1A] rounded-2xl p-6 border border-white/5 sticky top-40">
+              <h3 className="font-display text-xl text-[#F5F0E8] mb-5">Your Order</h3>
+              <div className="space-y-3 mb-5">
+                {items.map(item => (
+                  <div key={item.menuItemId} className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-lg overflow-hidden flex-shrink-0 relative"><Image src={item.imageUrl} alt={item.name} fill className="object-cover" /></div>
+                    <div className="flex-1 min-w-0"><p className="text-sm text-[#F5F0E8] truncate">{item.name}</p><p className="text-xs text-[#888]">Qty: {item.quantity}</p></div>
+                    <p className="text-sm text-[#F5F0E8]">${(item.price * item.quantity).toFixed(2)}</p>
+                  </div>
+                ))}
+              </div>
+              <div className="border-t border-white/10 pt-4 space-y-2 text-sm">
+                <div className="flex justify-between text-[#888]"><span>Subtotal</span><span>${total.toFixed(2)}</span></div>
+                <div className="flex justify-between text-[#888]"><span>Delivery</span><span>${deliveryFee.toFixed(2)}</span></div>
+                <div className="flex justify-between text-[#888]"><span>Tax</span><span>${tax.toFixed(2)}</span></div>
+                <div className="border-t border-white/10 pt-2 flex justify-between font-semibold text-[#F5F0E8]"><span>Total</span><span className="text-lg">${grandTotal.toFixed(2)}</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+STEP 11 — Create the Auth pages
+Create app/auth/login/page.tsx — email + password with show/hide toggle, Google OAuth demo button, link to register:
+typescript'use client';
+import { useState } from 'react';
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { Eye, EyeOff, Flame } from 'lucide-react';
+import { useAuthStore } from '@/store/auth';
+
+export default function LoginPage() {
+  const router = useRouter();
+  const login = useAuthStore(s => s.login);
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [showPw, setShowPw] = useState(false);
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault(); setError(''); setLoading(true);
+    const ok = await login(email, password);
+    setLoading(false);
+    if (ok) { router.push('/menu'); } else { setError('Invalid email or password.'); }
+  };
+
+  return (
+    <div className="min-h-screen flex items-center justify-center px-4 pt-20 pb-12">
+      <div className="w-full max-w-md">
+        <div className="text-center mb-10">
+          <Link href="/" className="inline-block mb-6"><span className="font-display text-5xl text-[#E8531A]">828 GRILL</span></Link>
+          <h1 className="font-display text-4xl text-[#F5F0E8] mb-2">Welcome Back</h1>
+          <p className="text-[#888]">Sign in to continue ordering</p>
+        </div>
+        <form onSubmit={handleSubmit} className="bg-[#1A1A1A] rounded-2xl p-6 sm:p-8 border border-white/5 space-y-5">
+          {error && <div className="bg-red-500/10 border border-red-500/30 rounded-xl p-4"><p className="text-red-400 text-sm">{error}</p></div>}
+          <div>
+            <label className="block text-sm text-[#888] mb-2">Email</label>
+            <input type="email" value={email} onChange={e => setEmail(e.target.value)} required placeholder="your@email.com"
+              className="w-full bg-[#0D0D0D] border border-white/10 rounded-xl px-4 py-3 text-[#F5F0E8] placeholder-[#555] focus:border-[#E8531A] focus:outline-none transition-colors" />
+          </div>
+          <div>
+            <label className="block text-sm text-[#888] mb-2">Password</label>
+            <div className="relative">
+              <input type={showPw ? 'text' : 'password'} value={password} onChange={e => setPassword(e.target.value)} required placeholder="••••••••"
+                className="w-full bg-[#0D0D0D] border border-white/10 rounded-xl px-4 py-3 pr-12 text-[#F5F0E8] placeholder-[#555] focus:border-[#E8531A] focus:outline-none transition-colors" />
+              <button type="button" onClick={() => setShowPw(!showPw)} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#888] hover:text-[#F5F0E8]">
+                {showPw ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+              </button>
+            </div>
+          </div>
+          <button type="submit" disabled={loading}
+            className="w-full py-4 rounded-xl bg-[#E8531A] hover:bg-[#E8531A]/90 text-white font-semibold transition-all disabled:opacity-70 flex items-center justify-center gap-2">
+            {loading ? <><div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />Signing In...</> : <><Flame className="w-5 h-5" />Sign In</>}
+          </button>
+        </form>
+        <p className="text-center text-[#888] text-sm mt-6">Don't have an account?{' '}<Link href="/auth/register" className="text-[#E8531A] font-medium">Create one</Link></p>
+      </div>
+    </div>
+  );
+}
+Create app/auth/register/page.tsx — all five fields (name, email, password, phone, address), show/hide password, min 8 char validation:
+typescript'use client';
+import { useState } from 'react';
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { Eye, EyeOff, Flame } from 'lucide-react';
+import { useAuthStore } from '@/store/auth';
+
+export default function RegisterPage() {
+  const router = useRouter();
+  const register = useAuthStore(s => s.register);
+  const [form, setForm] = useState({ name: '', email: '', password: '', phone: '', address: '' });
+  const [showPw, setShowPw] = useState(false);
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+  const set = (f: string, v: string) => setForm(p => ({ ...p, [f]: v }));
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault(); setError('');
+    if (form.password.length < 8) { setError('Password must be at least 8 characters.'); return; }
+    setLoading(true);
+    const ok = await register({ name: form.name, email: form.email, password: form.password, phone: form.phone || undefined, address: form.address || undefined });
+    setLoading(false);
+    if (ok) { router.push('/account'); } else { setError('An account with this email already exists.'); }
+  };
+
+  const inputClass = "w-full bg-[#0D0D0D] border border-white/10 rounded-xl px-4 py-3 text-[#F5F0E8] placeholder-[#555] focus:border-[#E8531A] focus:outline-none transition-colors";
+
+  return (
+    <div className="min-h-screen flex items-center justify-center px-4 pt-20 pb-12">
+      <div className="w-full max-w-md">
+        <div className="text-center mb-10">
+          <Link href="/" className="inline-block mb-6"><span className="font-display text-5xl text-[#E8531A]">828 GRILL</span></Link>
+          <h1 className="font-display text-4xl text-[#F5F0E8] mb-2">Join the Fire</h1>
+          <p className="text-[#888]">Create your account and start ordering</p>
+        </div>
+        <form onSubmit={handleSubmit} className="bg-[#1A1A1A] rounded-2xl p-6 sm:p-8 border border-white/5 space-y-4">
+          {error && <div className="bg-red-500/10 border border-red-500/30 rounded-xl p-4"><p className="text-red-400 text-sm">{error}</p></div>}
+          <div><label className="block text-sm text-[#888] mb-2">Full Name *</label><input type="text" value={form.name} onChange={e => set('name', e.target.value)} required placeholder="John Smith" className={inputClass} /></div>
+          <div><label className="block text-sm text-[#888] mb-2">Email *</label><input type="email" value={form.email} onChange={e => set('email', e.target.value)} required placeholder="your@email.com" className={inputClass} /></div>
+          <div>
+            <label className="block text-sm text-[#888] mb-2">Password * (min 8 chars)</label>
+            <div className="relative">
+              <input type={showPw ? 'text' : 'password'} value={form.password} onChange={e => set('password', e.target.value)} required minLength={8} placeholder="••••••••" className={`${inputClass} pr-12`} />
+              <button type="button" onClick={() => setShowPw(!showPw)} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#888] hover:text-[#F5F0E8]">{showPw ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}</button>
+            </div>
+          </div>
+          <div><label className="block text-sm text-[#888] mb-2">Phone Number (Optional)</label><input type="tel" value={form.phone} onChange={e => set('phone', e.target.value)} placeholder="(555) 123-4567" className={inputClass} /></div>
+          <div><label className="block text-sm text-[#888] mb-2">Delivery Address (Optional)</label><input type="text" value={form.address} onChange={e => set('address', e.target.value)} placeholder="123 Street, City, State ZIP" className={inputClass} /></div>
+          <button type="submit" disabled={loading}
+            className="w-full py-4 rounded-xl bg-[#E8531A] hover:bg-[#E8531A]/90 text-white font-semibold transition-all disabled:opacity-70 flex items-center justify-center gap-2 mt-2">
+            {loading ? <><div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />Creating Account...</> : <><Flame className="w-5 h-5" />Create Account</>}
+          </button>
+        </form>
+        <p className="text-center text-[#888] text-sm mt-6">Already have an account?{' '}<Link href="/auth/login" className="text-[#E8531A] font-medium">Sign in</Link></p>
+      </div>
+    </div>
+  );
+}
+
+STEP 12 — Create the Account page
+Create app/account/page.tsx. Shows user avatar (initial letter), profile card with phone/address, full order history with status badges and item breakdown:
+typescript'use client';
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { LogOut, MapPin, Phone, Package } from 'lucide-react';
+import { useAuthStore } from '@/store/auth';
+
+export default function AccountPage() {
+  const router = useRouter();
+  const user = useAuthStore(s => s.user);
+  const logout = useAuthStore(s => s.logout);
+
+  if (!user) { router.push('/auth/login'); return null; }
+
+  return (
+    <div className="min-h-screen pt-20 sm:pt-24">
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-10 sm:py-14">
+        <div className="flex items-center justify-between mb-10">
+          <div><h1 className="font-display text-4xl sm:text-5xl text-[#F5F0E8]">My Account</h1><p className="text-[#888] mt-1">Profile and order history</p></div>
+          <button onClick={() => { logout(); router.push('/'); }} className="flex items-center gap-2 px-5 py-2.5 bg-[#1A1A1A] border border-white/10 rounded-xl text-[#888] hover:text-red-400 hover:border-red-400/30 transition-all">
+            <LogOut className="w-4 h-4" /><span className="text-sm font-medium">Sign Out</span>
+          </button>
+        </div>
+        <div className="bg-[#1A1A1A] rounded-2xl p-6 sm:p-8 border border-white/5 mb-8">
+          <div className="flex items-center gap-5 mb-8">
+            <div className="w-16 h-16 bg-gradient-to-br from-[#E8531A] to-[#C44412] rounded-full flex items-center justify-center text-2xl font-bold text-white">{user.name.charAt(0).toUpperCase()}</div>
+            <div><h2 className="font-display text-2xl text-[#F5F0E8]">{user.name}</h2><p className="text-[#888] text-sm">{user.email}</p></div>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="flex items-center gap-3 bg-[#0D0D0D] rounded-xl p-4 border border-white/5"><Phone className="w-5 h-5 text-[#E8531A] flex-shrink-0" /><div><p className="text-xs text-[#888] uppercase tracking-wider">Phone</p><p className="text-[#F5F0E8] text-sm">{user.phone || 'Not set'}</p></div></div>
+            <div className="flex items-center gap-3 bg-[#0D0D0D] rounded-xl p-4 border border-white/5"><MapPin className="w-5 h-5 text-[#E8531A] flex-shrink-0" /><div><p className="text-xs text-[#888] uppercase tracking-wider">Address</p><p className="text-[#F5F0E8] text-sm">{user.address || 'Not set'}</p></div></div>
+          </div>
+        </div>
+        <div>
+          <h3 className="font-display text-2xl text-[#F5F0E8] mb-6 flex items-center gap-2"><Package className="w-5 h-5 text-[#E8531A]" />Order History</h3>
+          {user.orders && user.orders.length > 0 ? (
+            <div className="space-y-4">
+              {user.orders.map(order => (
+                <div key={order.id} className="bg-[#1A1A1A] rounded-2xl p-5 border border-white/5 hover:border-[#E8531A]/20 transition-colors">
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center gap-3">
+                      <span className="font-mono text-sm text-[#E8531A] bg-[#E8531A]/10 px-3 py-1 rounded-lg">{order.id}</span>
+                      <span className={`text-xs px-2.5 py-1 rounded-full font-semibold ${order.status === 'confirmed' || order.status === 'paid' ? 'bg-green-500/10 text-green-400' : 'bg-blue-500/10 text-blue-400'}`}>{order.status.toUpperCase()}</span>
+                    </div>
+                    <span className="text-[#888] text-sm">{new Date(order.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</span>
+                  </div>
+                  <div className="space-y-2">
+                    {order.items.map((item, i) => <div key={i} className="flex justify-between text-sm"><span className="text-[#F5F0E8]">{item.quantity}x {item.name}</span><span className="text-[#888]">${(item.price * item.quantity).toFixed(2)}</span></div>)}
+                  </div>
+                  <div className="border-t border-white/5 mt-3 pt-3 flex justify-between"><span className="text-[#888] text-sm">Total</span><span className="text-[#F5F0E8] font-semibold">${order.total.toFixed(2)}</span></div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="bg-[#1A1A1A] rounded-2xl p-10 border border-white/5 text-center">
+              <Package className="w-12 h-12 text-[#888] mx-auto mb-4" />
+              <p className="text-[#888] text-lg">No orders yet</p>
+              <Link href="/menu" className="inline-flex items-center gap-2 mt-5 bg-[#E8531A] hover:bg-[#E8531A]/90 text-white px-6 py-3 rounded-xl text-sm font-semibold transition-all">Order Now</Link>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+STEP 13 — Create the Order Confirmation page
+Create app/order/[id]/page.tsx. Shows success checkmark, order ID, itemised receipt, delivery address, estimated time, and links to order more or view account:
+typescript'use client';
+import Link from 'next/link';
+import { CheckCircle, Flame, ArrowRight, MapPin } from 'lucide-react';
+import { useAuthStore } from '@/store/auth';
+
+export default function OrderConfirmationPage() {
+  const user = useAuthStore(s => s.user);
+  const order = user?.orders?.[0];
+
+  return (
+    <div className="min-h-screen pt-20 sm:pt-24">
+      <div className="max-w-2xl mx-auto px-4 sm:px-6 py-10 sm:py-20">
+        <div className="text-center mb-10">
+          <div className="w-20 h-20 bg-green-500/10 rounded-full flex items-center justify-center mx-auto mb-6"><CheckCircle className="w-10 h-10 text-green-500" /></div>
+          <h1 className="font-display text-4xl sm:text-5xl text-[#F5F0E8] mb-3">Order Confirmed!</h1>
+          <p className="text-[#888] text-lg">Your fire is being prepared. Thank you for choosing 828 Grill.</p>
+        </div>
+        {order && (
+          <div className="bg-[#1A1A1A] rounded-2xl border border-white/5 overflow-hidden">
+            <div className="bg-[#E8531A]/10 border-b border-[#E8531A]/20 px-6 py-4 flex items-center justify-between">
+              <div className="flex items-center gap-2"><Flame className="w-4 h-4 text-[#E8531A]" /><span className="text-[#E8531A] text-sm font-medium">Order Placed Successfully</span></div>
+              <span className="font-mono text-sm text-[#F5F0E8] bg-[#0D0D0D] px-3 py-1 rounded-lg">{order.id}</span>
+            </div>
+            <div className="p-6">
+              <div className="space-y-3 mb-6">
+                {order.items.map((item, i) => (
+                  <div key={i} className="flex items-center justify-between text-sm">
+                    <div className="flex items-center gap-3"><span className="bg-[#0D0D0D] text-[#E8531A] w-6 h-6 rounded-md flex items-center justify-center text-xs font-bold">{item.quantity}</span><span className="text-[#F5F0E8]">{item.name}</span></div>
+                    <span className="text-[#888]">${(item.price * item.quantity).toFixed(2)}</span>
+                  </div>
+                ))}
+              </div>
+              {user?.address && (
+                <div className="flex items-start gap-3 bg-[#0D0D0D] rounded-xl p-4 mb-6 border border-white/5"><MapPin className="w-5 h-5 text-[#E8531A] mt-0.5 flex-shrink-0" /><div><p className="text-xs text-[#888] uppercase tracking-wider mb-1">Delivering to</p><p className="text-[#F5F0E8] text-sm">{user.address}</p></div></div>
+              )}
+              <div className="border-t border-white/10 pt-4 flex justify-between"><span className="text-[#888] font-medium">Total Paid</span><span className="text-2xl font-semibold text-[#F5F0E8]">${order.total.toFixed(2)}</span></div>
+              <div className="mt-6 bg-[#E8531A]/5 rounded-xl p-4 border border-[#E8531A]/20 flex items-center gap-3">
+                <div className="w-10 h-10 bg-[#E8531A]/10 rounded-full flex items-center justify-center flex-shrink-0"><span className="text-lg">🕐</span></div>
+                <div><p className="text-[#F5F0E8] text-sm font-medium">Estimated Delivery</p><p className="text-[#888] text-sm">30–45 minutes</p></div>
+              </div>
+            </div>
+          </div>
+        )}
+        <div className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-4">
+          <Link href="/menu" className="flex items-center gap-2 bg-[#E8531A] hover:bg-[#E8531A]/90 text-white px-8 py-4 rounded-xl font-semibold transition-all w-full sm:w-auto justify-center">Order More <ArrowRight className="w-5 h-5" /></Link>
+          <Link href="/account" className="flex items-center justify-center px-8 py-4 rounded-xl border border-white/10 text-[#F5F0E8] hover:bg-white/5 transition-all w-full sm:w-auto font-semibold">View Orders</Link>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+STEP 14 — Update the Home page to use the real menu data
+In the existing Home page, find wherever featured items are currently hardcoded or using placeholder data. Replace that section to import and use the real menu data:
+typescriptimport { menuItems } from '@/data/menu';
+// Then inside the component:
+const featuredItems = menuItems.filter(item => item.popular);
+Pass each item to <MenuItemCard item={item} key={item.id} />.
+
+STEP 15 — Final checks
+After generating all files, verify the following:
+
+Every file with useState, useEffect, useRouter, or any Zustand store import has 'use client'; as the very first line.
+All <Link> components use href not to (this is Next.js, not React Router).
+All <img> tags are replaced with Next.js <Image> from next/image with a fill prop and a wrapping relative div.
+The vercel.json file does NOT need any rewrite rules — Next.js App Router handles routing natively.
+Confirm there is no HashRouter or react-router-dom import anywhere — those were from the ZIP 2 source and must not be imported into this Next.js project.
+
+
+That is the complete upgrade. Do not change the hero copy, the marquee, the color palette, the SEO metadata, or any existing design element from Site 3. Add only what is listed above.

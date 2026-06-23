@@ -1,0 +1,64 @@
+// 828 Grill — Prisma schema (SQLite)
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(cuid())
+  name      String
+  email     String   @unique
+  password  String
+  phone     String?
+  address   String?
+  orders    Order[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model MenuItem {
+  id          String      @id @default(cuid())
+  name        String
+  description String
+  price       Float
+  category    String
+  imageUrl    String
+  featured    Boolean     @default(false)
+  available   Boolean     @default(true)
+  orderItems  OrderItem[]
+
+  @@index([category])
+  @@index([available])
+}
+
+model Order {
+  id        String      @id @default(cuid())
+  user      User        @relation(fields: [userId], references: [id])
+  userId    String
+  items     OrderItem[]
+  total     Float
+  status    String      @default("pending")
+  stripeId  String?
+  createdAt DateTime    @default(now())
+
+  @@index([userId])
+  @@index([status])
+}
+
+model OrderItem {
+  id         String   @id @default(cuid())
+  order      Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  orderId    String
+  menuItem   MenuItem @relation(fields: [menuItemId], references: [id])
+  menuItemId String
+  quantity   Int
+  unitPrice  Float
+
+  @@index([orderId])
+  @@index([menuItemId])
+}

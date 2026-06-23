@@ -55,9 +55,13 @@ export function AccountView() {
             address: pData.user.address || '',
           });
         }
-        if (oRes.ok) setOrders(oData.orders || []);
+        if (oRes.ok) {
+          setOrders(oData.orders || []);
+        } else {
+          console.error('Orders API error:', oRes.status, oData);
+        }
       } catch (e) {
-        // ignore
+        console.error('Account fetch error:', e);
       } finally {
         if (!cancelled) setLoading(false);
       }

@@ -21,6 +21,7 @@ export async function POST(req: Request) {
   const body = await req.json();
   const cartItems: CartItem[] = body.items ?? [];
   if (!cartItems.length) return NextResponse.json({ error: 'Cart is empty' }, { status: 400 });
+  const notes = typeof body.notes === 'string' ? body.notes.slice(0, 500).trim() : null;
 
   const sql = getSql();
   const ids = cartItems.map((i) => i.id);
@@ -31,9 +32,9 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Some items are unavailable' }, { status: 400 });
   }
 
-  const users = await sql`SELECT id FROM "User" WHERE email = ${session.user.email} LIMIT 1`;
-  if (!users.length) return NextResponse.json({ error: 'User not found' }, { status: 404 });
-  const userId = users[0].id;
+  await sql`ALTER TABLE "Order" ADD COLUMN IF NOT EXISTS notes TEXT`.catch(() => {});
+
+  const userId = session.user.id;
 
   const sub = cartItems.reduce((s, i) => s + i.price * i.quantity, 0);
   const tax = Math.round(sub * TAX_RATE * 100) / 100;
@@ -63,8 +64,8 @@ export async function POST(req: Request) {
   }
 
   await sql`
-    INSERT INTO "Order" (id, "userId", total, status, "stripeId", "createdAt")
-    VALUES (${orderId}, ${userId}, ${total}, 'pending', ${stripeId}, NOW())
+    INSERT INTO "Order" (id, "userId", total, status, "stripeId", notes, "createdAt")
+    VALUES (${orderId}, ${userId}, ${total}, 'pending', ${stripeId}, ${notes || null}, NOW())
   `;
 
   for (const item of cartItems) {

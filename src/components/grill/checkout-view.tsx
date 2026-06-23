@@ -248,7 +248,7 @@ export function CheckoutView() {
   const [pendingOrder, setPendingOrder] = useState<{
     id: string; stripeId: string; clientSecret: string | null; stripeEnabled: boolean;
   } | null>(null);
-  const [delivery, setDelivery] = useState({ phone: '', address: '' });
+  const [delivery, setDelivery] = useState({ phone: '', address: '', notes: '' });
 
   const sub = subtotal();
   const tax = Math.round(sub * TAX_RATE * 100) / 100;
@@ -278,7 +278,7 @@ export function CheckoutView() {
       const res = await fetch('/api/checkout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ items }),
+        body: JSON.stringify({ items, notes: delivery.notes || undefined }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to start checkout');
@@ -442,6 +442,19 @@ export function CheckoutView() {
                         className="w-full rounded-lg border border-white/10 bg-[#0d0d0d] px-3 py-2.5 text-sm text-[#f5f0e8] outline-none transition-colors focus:border-[#e8531a]"
                       />
                     </div>
+                  </div>
+                  <div className="mb-4">
+                    <label className="mb-1 block text-xs font-semibold uppercase tracking-wider text-[#888888]">
+                      Special Instructions <span className="normal-case text-[#555]">(optional)</span>
+                    </label>
+                    <textarea
+                      rows={2}
+                      placeholder="No onions, extra sauce, allergy notes…"
+                      value={delivery.notes}
+                      onChange={(e) => setDelivery({ ...delivery, notes: e.target.value })}
+                      maxLength={500}
+                      className="w-full resize-none rounded-lg border border-white/10 bg-[#0d0d0d] px-3 py-2.5 text-sm text-[#f5f0e8] outline-none transition-colors focus:border-[#e8531a] placeholder:text-[#444]"
+                    />
                   </div>
                   <div className="mb-6 border-t border-white/10" />
                   <button

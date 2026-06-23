@@ -24,7 +24,7 @@ export async function POST(req: Request) {
   const rows = await sql`
     UPDATE "User"
     SET "verifyToken" = ${token}
-    WHERE email = ${session.user.email} AND "emailVerified" = false
+    WHERE id = ${session.user.id} AND "emailVerified" = false
     RETURNING name, email
   `;
 

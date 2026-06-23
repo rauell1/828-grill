@@ -9,7 +9,7 @@ export async function GET() {
   const sql = getSql();
   const users = await sql`
     SELECT id, name, email, phone, address, "createdAt", "emailVerified"
-    FROM "User" WHERE email = ${session.user.email} LIMIT 1
+    FROM "User" WHERE id = ${session.user.id} LIMIT 1
   `;
   if (!users.length) return NextResponse.json({ error: 'User not found' }, { status: 404 });
 
@@ -31,7 +31,7 @@ export async function PUT(req: Request) {
       phone = ${phone ? String(phone).trim() : null},
       address = ${address ? String(address).trim() : null},
       "updatedAt" = NOW()
-    WHERE email = ${session.user.email}
+    WHERE id = ${session.user.id}
     RETURNING id, name, email, phone, address
   `;
 

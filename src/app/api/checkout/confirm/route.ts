@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { auth } from '@/lib/auth/server';
 import { getSql } from '@/lib/db';
+import { sendOrderConfirmationEmail, sendAdminOrderNotificationEmail } from '@/lib/email';
 
 export async function POST(req: Request) {
   const { data: session } = await auth.getSession();
@@ -10,9 +11,7 @@ export async function POST(req: Request) {
   if (!orderId) return NextResponse.json({ error: 'Missing orderId' }, { status: 400 });
 
   const sql = getSql();
-  const users = await sql`SELECT id FROM "User" WHERE email = ${session.user.email} LIMIT 1`;
-  if (!users.length) return NextResponse.json({ error: 'User not found' }, { status: 404 });
-  const userId = users[0].id;
+  const userId = session.user.id;
 
   const existing = await sql`
     SELECT id, status, "stripeId" FROM "Order" WHERE id = ${orderId} AND "userId" = ${userId} LIMIT 1
@@ -36,6 +35,7 @@ export async function POST(req: Request) {
     }
   }
 
+  const wasAlreadyPaid = order.status === 'paid';
   await sql`UPDATE "Order" SET status = 'paid' WHERE id = ${orderId}`;
 
   const orders = await sql`
@@ -54,6 +54,26 @@ export async function POST(req: Request) {
     GROUP BY o.id
     LIMIT 1
   `;
+
+  // Send emails only if this call actually transitioned the order to paid
+  // (not on duplicate confirm calls from the same session)
+  if (!wasAlreadyPaid && orders[0]) {
+    const o = orders[0];
+    const emailData = {
+      id: o.id,
+      total: o.total,
+      createdAt: o.createdAt,
+      userName: o.userName ?? session.user.name ?? '',
+      userEmail: session.user.email ?? '',
+      items: (o.items ?? []).map((i: any) => ({
+        name: i.menuItem?.name ?? i.name ?? '',
+        quantity: i.quantity,
+        unitPrice: i.unitPrice,
+      })),
+    };
+    sendOrderConfirmationEmail(emailData);
+    sendAdminOrderNotificationEmail(emailData);
+  }
 
   return NextResponse.json({ order: orders[0] });
 }

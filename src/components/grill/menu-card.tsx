@@ -19,12 +19,13 @@ export interface MenuItemData {
   allergens?: string;
 }
 
-export function MenuCard({ item }: { item: MenuItemData }) {
+export function MenuCard({ item, restaurantOpen = true }: { item: MenuItemData; restaurantOpen?: boolean }) {
   const add = useCart((s) => s.add);
   const { toast } = useToast();
   const [added, setAdded] = useState(false);
 
   const handleAdd = () => {
+    if (!restaurantOpen) return;
     add(
       {
         id: item.id,
@@ -93,18 +94,21 @@ export function MenuCard({ item }: { item: MenuItemData }) {
           </div>
         )}
 
-        {/* Ghost outline Add to Cart button */}
+        {/* Add to Cart button */}
         <button
           type="button"
           onClick={handleAdd}
-          aria-label={`Add ${item.name} to cart`}
+          disabled={!restaurantOpen}
+          aria-label={restaurantOpen ? `Add ${item.name} to cart` : 'Restaurant is currently closed'}
           className={`mt-6 border px-4 py-3 text-sm font-extrabold uppercase tracking-[0.18em] transition-all ${
-            added
+            !restaurantOpen
+              ? 'cursor-not-allowed border-white/10 text-[#555]'
+              : added
               ? 'border-green-500/50 bg-green-500/10 text-green-400'
               : 'border-[#E8531A]/50 text-[#F5F0E8] hover:border-[#E8531A] hover:bg-[#E8531A] hover:text-white'
           }`}
         >
-          {added ? 'Added' : 'Add to Cart'}
+          {!restaurantOpen ? 'Closed' : added ? 'Added' : 'Add to Cart'}
         </button>
       </div>
     </article>

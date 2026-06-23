@@ -4,16 +4,16 @@ import { useState, useEffect, useRef } from 'react';
 import Image from 'next/image';
 import {
   Plus, Pencil, Trash2, X, Check, Loader2, ChevronDown,
-  LayoutGrid, Flame, Search, AlertTriangle, ToggleLeft, ToggleRight,
+  LayoutGrid, Search, AlertTriangle, ToggleLeft, ToggleRight,
   Star, ImageIcon, ArrowLeft, Upload, Link2, Mail, Users, Send,
-  Clock, ChevronRight, ShoppingBag, BarChart2,
+  Clock, ShoppingBag, BarChart2, MessageSquare, Phone, MapPin,
 } from 'lucide-react';
 import { useUI } from '@/store/ui';
 import { cn } from '@/lib/utils';
 import { AdminOrders } from './admin-orders';
 import { AdminAnalytics } from './admin-analytics';
 
-type Tab = 'menu' | 'orders' | 'newsletter' | 'analytics';
+type Tab = 'menu' | 'orders' | 'customers' | 'feedback' | 'newsletter' | 'analytics';
 type Category = 'Burgers' | 'Sides' | 'Drinks' | 'Combos';
 type ImageMode = 'url' | 'upload';
 
@@ -67,6 +67,47 @@ export function AdminView() {
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // ── Customers state ───────────────────────────────────────────────────
+  const [custLoading, setCustLoading] = useState(false);
+  const [custLoaded, setCustLoaded] = useState(false);
+  interface CustomerRow { id: string; name: string; email: string; phone?: string; address?: string; joinedAt: string; emailVerified: boolean; orderCount: number; totalSpent: number; lastOrderAt?: string; avgFoodRating?: number; avgServiceRating?: number; feedbackCount: number; }
+  interface CustSummary { totalCustomers: number; newThisMonth: number; newThisWeek: number; }
+  const [customers, setCustomers] = useState<CustomerRow[]>([]);
+  const [custSummary, setCustSummary] = useState<CustSummary | null>(null);
+  const [custSearch, setCustSearch] = useState('');
+
+  const loadCustomers = async () => {
+    if (custLoaded) return;
+    setCustLoading(true);
+    try {
+      const res = await fetch('/api/admin/customers');
+      const data = await res.json();
+      if (res.ok) { setCustomers(data.customers ?? []); setCustSummary(data.summary); setCustLoaded(true); }
+      else showToast(data.error ?? 'Failed to load customers', 'err');
+    } catch { showToast('Network error', 'err'); }
+    finally { setCustLoading(false); }
+  };
+
+  // ── Feedback state ─────────────────────────────────────────────────────
+  const [fbLoading, setFbLoading] = useState(false);
+  const [fbLoaded, setFbLoaded] = useState(false);
+  interface FeedbackRow { id: string; orderId: string; foodRating: number; serviceRating: number; comment?: string; createdAt: string; customerName: string; customerEmail: string; orderTotal: number; }
+  interface FbSummary { total: number; avgFoodRating: number; avgServiceRating: number; avgOverall: number; fiveStarFood: number; fiveStarService: number; }
+  const [feedbackList, setFeedbackList] = useState<FeedbackRow[]>([]);
+  const [fbSummary, setFbSummary] = useState<FbSummary | null>(null);
+
+  const loadFeedback = async () => {
+    if (fbLoaded) return;
+    setFbLoading(true);
+    try {
+      const res = await fetch('/api/admin/feedback');
+      const data = await res.json();
+      if (res.ok) { setFeedbackList(data.list ?? []); setFbSummary(data.summary); setFbLoaded(true); }
+      else showToast(data.error ?? 'Failed to load feedback', 'err');
+    } catch { showToast('Network error', 'err'); }
+    finally { setFbLoading(false); }
+  };
+
   // ── Newsletter state ───────────────────────────────────────────────────
   const [nlLoading, setNlLoading] = useState(false);
   const [nlLoaded, setNlLoaded] = useState(false);
@@ -118,6 +159,8 @@ export function AdminView() {
 
   useEffect(() => {
     if (tab === 'newsletter') loadNewsletter();
+    if (tab === 'customers') loadCustomers();
+    if (tab === 'feedback') loadFeedback();
   }, [tab]);
 
   // ── Panel helpers ──────────────────────────────────────────────────────
@@ -310,8 +353,10 @@ export function AdminView() {
           {([
             { key: 'menu', icon: LayoutGrid, label: 'Menu' },
             { key: 'orders', icon: ShoppingBag, label: 'Orders' },
+            { key: 'customers', icon: Users, label: 'Customers' },
+            { key: 'feedback', icon: MessageSquare, label: 'Reviews' },
             { key: 'newsletter', icon: Mail, label: 'Newsletter' },
-            { key: 'analytics', icon: BarChart2, label: 'Analytics' },
+            { key: 'analytics', icon: BarChart2, label: 'Reports' },
           ] as const).map(({ key, icon: Icon, label }) => (
             <button
               key={key}
@@ -639,6 +684,178 @@ export function AdminView() {
 
         {/* ══════════════ ORDERS TAB ══════════════ */}
         {tab === 'orders' && <AdminOrders />}
+
+        {/* ══════════════ CUSTOMERS TAB ══════════════ */}
+        {tab === 'customers' && (
+          <div className="space-y-6">
+            <h2 className="font-display text-2xl tracking-wider text-[#f5f0e8]">CUSTOMERS</h2>
+
+            {/* Summary cards */}
+            {custSummary && (
+              <div className="grid grid-cols-3 gap-4">
+                {[
+                  { label: 'Total customers', value: custSummary.totalCustomers, color: 'text-[#f5f0e8]' },
+                  { label: 'New this month', value: custSummary.newThisMonth, color: 'text-green-400' },
+                  { label: 'New this week', value: custSummary.newThisWeek, color: 'text-blue-400' },
+                ].map((s) => (
+                  <div key={s.label} className="rounded-xl border border-white/10 bg-[#141414] px-5 py-4">
+                    <p className="font-mono text-[10px] uppercase tracking-wider text-[#555]">{s.label}</p>
+                    <p className={`mt-1 font-display text-3xl ${s.color}`}>{s.value}</p>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Search */}
+            <div className="relative max-w-sm">
+              <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[#555]" />
+              <input
+                type="text"
+                placeholder="Search customers…"
+                value={custSearch}
+                onChange={(e) => setCustSearch(e.target.value)}
+                className="h-9 w-full rounded-lg border border-white/10 bg-[#141414] pl-8 pr-3 text-sm text-[#f5f0e8] outline-none placeholder:text-[#444] focus:border-[#e8531a]/50"
+              />
+            </div>
+
+            {custLoading ? (
+              <div className="flex h-40 items-center justify-center"><Loader2 className="h-7 w-7 animate-spin text-[#e8531a]" /></div>
+            ) : (
+              <div className="overflow-hidden rounded-xl border border-white/10">
+                <div className="overflow-x-auto">
+                  <table className="w-full border-collapse text-sm">
+                    <thead>
+                      <tr className="border-b border-white/10 bg-[#141414]">
+                        {['Customer', 'Contact', 'Orders', 'Lifetime Value', 'Food ★', 'Service ★', 'Joined'].map((h) => (
+                          <th key={h} className="px-4 py-3 text-left font-mono text-[10px] uppercase tracking-widest text-[#555]">{h}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {customers
+                        .filter((c) => !custSearch || c.name?.toLowerCase().includes(custSearch.toLowerCase()) || c.email.toLowerCase().includes(custSearch.toLowerCase()))
+                        .map((c, idx) => (
+                          <tr key={c.id} className={cn('border-b border-white/5 transition-colors hover:bg-white/[0.02]', idx % 2 === 0 ? 'bg-[#0d0d0d]' : 'bg-[#111]')}>
+                            <td className="px-4 py-3">
+                              <p className="font-medium text-[#f5f0e8]">{c.name || '—'}</p>
+                              <p className="text-xs text-[#555]">{c.email}</p>
+                              {!c.emailVerified && <span className="mt-0.5 inline-block rounded-full bg-yellow-500/15 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-yellow-400">Unverified</span>}
+                            </td>
+                            <td className="px-4 py-3">
+                              {c.phone && <p className="flex items-center gap-1 text-xs text-[#888]"><Phone className="h-3 w-3" />{c.phone}</p>}
+                              {c.address && <p className="mt-0.5 flex items-center gap-1 text-xs text-[#555]"><MapPin className="h-3 w-3" /><span className="max-w-[140px] truncate">{c.address}</span></p>}
+                            </td>
+                            <td className="px-4 py-3 font-data text-[#f5f0e8]">{c.orderCount}</td>
+                            <td className="px-4 py-3 font-data font-semibold text-[#e8531a]">
+                              {new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(c.totalSpent)}
+                            </td>
+                            <td className="px-4 py-3">
+                              {c.avgFoodRating ? (
+                                <span className="flex items-center gap-1">
+                                  <Star className="h-3.5 w-3.5 fill-[#e8531a] text-[#e8531a]" />
+                                  <span className="font-data text-[#f5f0e8]">{Number(c.avgFoodRating).toFixed(1)}</span>
+                                </span>
+                              ) : <span className="text-[#444]">—</span>}
+                            </td>
+                            <td className="px-4 py-3">
+                              {c.avgServiceRating ? (
+                                <span className="flex items-center gap-1">
+                                  <Star className="h-3.5 w-3.5 fill-[#e8531a] text-[#e8531a]" />
+                                  <span className="font-data text-[#f5f0e8]">{Number(c.avgServiceRating).toFixed(1)}</span>
+                                </span>
+                              ) : <span className="text-[#444]">—</span>}
+                            </td>
+                            <td className="px-4 py-3 text-xs text-[#555]">{new Date(c.joinedAt).toLocaleDateString()}</td>
+                          </tr>
+                        ))}
+                    </tbody>
+                  </table>
+                </div>
+                <p className="border-t border-white/5 px-4 py-2 text-center text-xs text-[#444]">
+                  {customers.length} customer{customers.length !== 1 ? 's' : ''} total
+                </p>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ══════════════ FEEDBACK TAB ══════════════ */}
+        {tab === 'feedback' && (
+          <div className="space-y-6">
+            <h2 className="font-display text-2xl tracking-wider text-[#f5f0e8]">CUSTOMER <span className="text-[#e8531a]">REVIEWS</span></h2>
+
+            {/* Summary */}
+            {fbSummary && fbSummary.total > 0 && (
+              <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+                {[
+                  { label: 'Total reviews', value: fbSummary.total, unit: '' },
+                  { label: 'Avg overall', value: fbSummary.avgOverall?.toFixed(1) ?? '—', unit: '/ 5' },
+                  { label: 'Food quality', value: fbSummary.avgFoodRating?.toFixed(1) ?? '—', unit: '/ 5' },
+                  { label: 'Service', value: fbSummary.avgServiceRating?.toFixed(1) ?? '—', unit: '/ 5' },
+                ].map((s) => (
+                  <div key={s.label} className="rounded-xl border border-white/10 bg-[#141414] px-5 py-4 text-center">
+                    <p className="font-mono text-[10px] uppercase tracking-wider text-[#555]">{s.label}</p>
+                    <p className="mt-1 font-display text-3xl text-[#e8531a]">
+                      {s.value}<span className="text-base text-[#555]"> {s.unit}</span>
+                    </p>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {fbLoading ? (
+              <div className="flex h-40 items-center justify-center"><Loader2 className="h-7 w-7 animate-spin text-[#e8531a]" /></div>
+            ) : feedbackList.length === 0 ? (
+              <div className="flex flex-col items-center gap-2 py-16 text-center">
+                <MessageSquare className="h-10 w-10 text-[#333]" />
+                <p className="text-sm text-[#555]">No reviews yet. Reviews appear after orders are delivered.</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {feedbackList.map((f) => (
+                  <div key={f.id} className="rounded-xl border border-white/10 bg-[#141414] p-5">
+                    <div className="flex flex-wrap items-start justify-between gap-3">
+                      <div>
+                        <p className="font-medium text-[#f5f0e8]">{f.customerName || '—'}</p>
+                        <p className="text-xs text-[#555]">{f.customerEmail}</p>
+                      </div>
+                      <div className="flex flex-col items-end gap-1">
+                        <p className="font-data text-xs text-[#555]">
+                          Order #{f.orderId.slice(-8).toUpperCase()} ·{' '}
+                          {new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(f.orderTotal)}
+                        </p>
+                        <p className="text-xs text-[#444]">{new Date(f.createdAt).toLocaleDateString()}</p>
+                      </div>
+                    </div>
+                    <div className="mt-3 flex flex-wrap gap-4">
+                      <div>
+                        <p className="mb-1 text-[10px] uppercase tracking-wider text-[#555]">Food</p>
+                        <div className="flex gap-0.5">
+                          {[1,2,3,4,5].map((s) => (
+                            <Star key={s} className={`h-4 w-4 ${s <= f.foodRating ? 'fill-[#e8531a] text-[#e8531a]' : 'text-[#333]'}`} />
+                          ))}
+                        </div>
+                      </div>
+                      <div>
+                        <p className="mb-1 text-[10px] uppercase tracking-wider text-[#555]">Service</p>
+                        <div className="flex gap-0.5">
+                          {[1,2,3,4,5].map((s) => (
+                            <Star key={s} className={`h-4 w-4 ${s <= f.serviceRating ? 'fill-[#e8531a] text-[#e8531a]' : 'text-[#333]'}`} />
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                    {f.comment && (
+                      <p className="mt-3 rounded-lg border border-white/5 bg-[#0d0d0d] px-3 py-2 text-sm italic text-[#aaa]">
+                        &ldquo;{f.comment}&rdquo;
+                      </p>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
 
         {/* ══════════════ ANALYTICS TAB ══════════════ */}
         {tab === 'analytics' && <AdminAnalytics />}

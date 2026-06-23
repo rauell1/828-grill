@@ -26,7 +26,7 @@ interface OrderItem {
   imageUrl: string;
 }
 interface OrderDetail {
-  order: OrderRow & { customerPhone?: string; customerAddress?: string };
+  order: OrderRow & { customerPhone?: string; customerAddress?: string; notes?: string };
   items: OrderItem[];
 }
 
@@ -161,6 +161,16 @@ function OrderRow({
                   </p>
                 </div>
               </div>
+
+              {/* Special instructions */}
+              {detail.order.notes && (
+                <div className="rounded-lg border border-yellow-500/20 bg-yellow-500/5 px-3 py-2.5">
+                  <p className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-yellow-500/70">
+                    Special instructions
+                  </p>
+                  <p className="text-sm text-yellow-200/90">{detail.order.notes}</p>
+                </div>
+              )}
 
               {/* Items */}
               <div className="space-y-2">

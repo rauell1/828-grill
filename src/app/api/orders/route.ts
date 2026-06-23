@@ -7,9 +7,7 @@ export async function GET() {
   if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   const sql = getSql();
-  const users = await sql`SELECT id FROM "User" WHERE email = ${session.user.email} LIMIT 1`;
-  if (!users.length) return NextResponse.json({ orders: [] });
-  const userId = users[0].id;
+  const userId = session.user.id;
 
   const orders = await sql`
     SELECT

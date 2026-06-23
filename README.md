@@ -22,15 +22,15 @@
 |---|---|
 | 🍔 Full menu with category filtering | ✅ Live |
 | 🛒 Cart with real-time subtotal | ✅ Live |
-| 💳 Checkout with order creation | ✅ Live (mock payment — Stripe WIP) |
+| 💳 Stripe checkout (PaymentIntents + Elements) | ✅ Live |
 | 🔐 Custom cookie-based auth (register / login) | ✅ Live |
 | 👤 Account + order history | ✅ Live |
 | 🛠 Admin CMS — create / edit / delete menu items | ✅ Live |
 | 🖼 Image upload via Cloudinary | ✅ Live |
 | 📧 Newsletter — admin compose & send via Resend | ✅ Live |
 | 📬 Public newsletter subscribe (homepage) | ✅ Live |
-| 💰 Real Stripe payment integration | 🔜 Next milestone |
-| 📋 Admin orders dashboard | 🔜 Next milestone |
+| 📋 Admin orders dashboard + status management | ✅ Live |
+| 📊 Admin analytics — charts, KPIs, top customers | ✅ Live |
 
 ---
 
@@ -97,6 +97,11 @@ NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET=your_unsigned_preset
 # Newsletter (Resend free tier)
 RESEND_API_KEY=re_xxxxxxxxxxxx
 NEWSLETTER_FROM=noreply@yourdomain.com
+
+# Stripe (optional — app runs with mock checkout if not set)
+NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=pk_live_xxxx
+STRIPE_SECRET_KEY=sk_live_xxxx
+STRIPE_WEBHOOK_SECRET=whsec_xxxx
 ```
 
 ### 3. Run locally
@@ -129,8 +134,9 @@ To add more admins, set `ADMIN_EMAILS=email1@x.com,email2@x.com` in Vercel envir
 - ✏️ Create / edit / delete menu items
 - 🔄 Toggle item availability and Popular badge in one click
 - 🖼 Upload images from device (Cloudinary) or paste a URL
+- 📋 View all orders, expand each for full detail, update status (pending → paid → preparing → ready → delivered)
+- 📊 Analytics dashboard: revenue KPIs, 30-day trend chart, top/least popular items, category split, top customers
 - 📧 Compose and send newsletter campaigns to all subscribers
-- 📊 View subscriber count and past campaign history
 
 ---
 
@@ -161,9 +167,10 @@ Schema is managed inline via `CREATE TABLE IF NOT EXISTS` — no migration runne
 
 ## Roadmap
 
-- [ ] **Stripe integration** — real card processing, webhooks
-- [ ] **Admin orders dashboard** — live order feed + full history
-- [ ] **Order status updates** — email notifications when order is ready
+- [x] **Stripe integration** — PaymentIntents + Elements, webhook confirmation
+- [x] **Admin orders dashboard** — full history + status management
+- [x] **Admin analytics** — revenue, top items, customers, charts
+- [ ] **Order status email** — notify customer when order is ready
 - [ ] **Loyalty / promo codes** — discount engine
 - [ ] **Mobile app** (React Native)
 

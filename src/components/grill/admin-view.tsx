@@ -7,6 +7,7 @@ import {
   LayoutGrid, Search, AlertTriangle, ToggleLeft, ToggleRight,
   Star, ImageIcon, ArrowLeft, Upload, Link2, Mail, Users, Send,
   Clock, ShoppingBag, BarChart2, MessageSquare, Phone, MapPin,
+  Tag, ToggleLeft as ToggleOff, Trash2 as TrashIcon, PauseCircle, PlayCircle, Eye, EyeOff,
 } from 'lucide-react';
 import { useUI } from '@/store/ui';
 import { cn } from '@/lib/utils';
@@ -14,7 +15,7 @@ import { AdminOrders } from './admin-orders';
 import { AdminAnalytics } from './admin-analytics';
 import { AdminLiveOrders } from './admin-live-orders';
 
-type Tab = 'live' | 'menu' | 'orders' | 'customers' | 'feedback' | 'newsletter' | 'analytics';
+type Tab = 'live' | 'menu' | 'orders' | 'promos' | 'customers' | 'feedback' | 'newsletter' | 'analytics';
 type Category = 'Burgers' | 'Sides' | 'Drinks' | 'Combos';
 type ImageMode = 'url' | 'upload';
 
@@ -109,6 +110,69 @@ export function AdminView() {
     finally { setFbLoading(false); }
   };
 
+  // ── Promos state ───────────────────────────────────────────────────────
+  interface PromoRow { id: string; code: string; discountType: 'pct' | 'flat'; discountValue: number; status: 'active' | 'paused' | 'disabled'; usedCount: number; maxUses: number | null; expiresAt: string | null; createdAt: string; }
+  const [promos, setPromos] = useState<PromoRow[]>([]);
+  const [promosLoading, setPromosLoading] = useState(false);
+  const [promosLoaded, setPromosLoaded] = useState(false);
+  const [promoForm, setPromoForm] = useState({ code: '', discountType: 'pct', discountValue: '', maxUses: '', expiresAt: '' });
+  const [promoCreating, setPromoCreating] = useState(false);
+  const [promoDeleteConfirm, setPromoDeleteConfirm] = useState<string | null>(null);
+
+  const loadPromos = async () => {
+    if (promosLoaded) return;
+    setPromosLoading(true);
+    try {
+      const res = await fetch('/api/admin/promo');
+      const data = await res.json();
+      if (res.ok) { setPromos(data.promos ?? []); setPromosLoaded(true); }
+      else showToast(data.error ?? 'Failed to load promos', 'err');
+    } catch { showToast('Network error', 'err'); }
+    finally { setPromosLoading(false); }
+  };
+
+  const handlePromoCreate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setPromoCreating(true);
+    try {
+      const res = await fetch('/api/admin/promo', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          code: promoForm.code,
+          discountType: promoForm.discountType,
+          discountValue: promoForm.discountValue,
+          maxUses: promoForm.maxUses || null,
+          expiresAt: promoForm.expiresAt || null,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) { showToast(data.error ?? 'Failed to create promo', 'err'); return; }
+      setPromos((p) => [data.promo, ...p]);
+      setPromoForm({ code: '', discountType: 'pct', discountValue: '', maxUses: '', expiresAt: '' });
+      showToast(`Promo ${data.promo.code} created`);
+    } catch { showToast('Network error', 'err'); }
+    finally { setPromoCreating(false); }
+  };
+
+  const handlePromoStatus = async (id: string, status: string) => {
+    const res = await fetch(`/api/admin/promo/${id}`, {
+      method: 'PUT', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status }),
+    });
+    if (res.ok) {
+      const { promo } = await res.json();
+      setPromos((p) => p.map((x) => (x.id === id ? promo : x)));
+      showToast(`Promo ${status}`);
+    }
+  };
+
+  const handlePromoDelete = async (id: string) => {
+    const res = await fetch(`/api/admin/promo/${id}`, { method: 'DELETE' });
+    if (res.ok) { setPromos((p) => p.filter((x) => x.id !== id)); showToast('Promo deleted'); }
+    setPromoDeleteConfirm(null);
+  };
+
   // ── Newsletter state ───────────────────────────────────────────────────
   const [nlLoading, setNlLoading] = useState(false);
   const [nlLoaded, setNlLoaded] = useState(false);
@@ -162,6 +226,7 @@ export function AdminView() {
     if (tab === 'newsletter') loadNewsletter();
     if (tab === 'customers') loadCustomers();
     if (tab === 'feedback') loadFeedback();
+    if (tab === 'promos') loadPromos();
   }, [tab]);
 
   // ── Panel helpers ──────────────────────────────────────────────────────
@@ -355,6 +420,7 @@ export function AdminView() {
             { key: 'live', icon: Clock, label: 'Live' },
             { key: 'menu', icon: LayoutGrid, label: 'Menu' },
             { key: 'orders', icon: ShoppingBag, label: 'Orders' },
+            { key: 'promos', icon: Tag, label: 'Promos' },
             { key: 'customers', icon: Users, label: 'Customers' },
             { key: 'feedback', icon: MessageSquare, label: 'Reviews' },
             { key: 'newsletter', icon: Mail, label: 'Newsletter' },
@@ -857,6 +923,235 @@ export function AdminView() {
                     )}
                   </div>
                 ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ══════════════ PROMOS TAB ══════════════ */}
+        {tab === 'promos' && (
+          <div className="space-y-8">
+            <h2 className="font-display text-2xl tracking-wider text-[#f5f0e8]">
+              PROMO <span className="text-[#e8531a]">CODES</span>
+            </h2>
+
+            {/* Create form */}
+            <div className="rounded-2xl border border-white/10 bg-[#1a1a1a] p-6">
+              <h3 className="mb-4 text-sm font-bold uppercase tracking-wider text-[#f5f0e8]">
+                Create New Code
+              </h3>
+              <form onSubmit={handlePromoCreate} className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                {/* Code */}
+                <div className="lg:col-span-1">
+                  <label className="mb-1 block text-xs font-semibold uppercase tracking-wider text-[#888]">Code</label>
+                  <input
+                    value={promoForm.code}
+                    onChange={(e) => setPromoForm({ ...promoForm, code: e.target.value.toUpperCase().replace(/\s/g, '') })}
+                    placeholder="SUMMER20"
+                    required
+                    className="w-full rounded-lg border border-white/10 bg-[#0d0d0d] px-3 py-2.5 font-data text-sm uppercase tracking-wider text-[#f5f0e8] outline-none transition-colors focus:border-[#e8531a]"
+                  />
+                </div>
+
+                {/* Type */}
+                <div>
+                  <label className="mb-1 block text-xs font-semibold uppercase tracking-wider text-[#888]">Type</label>
+                  <select
+                    value={promoForm.discountType}
+                    onChange={(e) => setPromoForm({ ...promoForm, discountType: e.target.value })}
+                    className="w-full rounded-lg border border-white/10 bg-[#0d0d0d] px-3 py-2.5 text-sm text-[#f5f0e8] outline-none focus:border-[#e8531a]"
+                  >
+                    <option value="pct">Percentage (%)</option>
+                    <option value="flat">Fixed amount ($)</option>
+                  </select>
+                </div>
+
+                {/* Value */}
+                <div>
+                  <label className="mb-1 block text-xs font-semibold uppercase tracking-wider text-[#888]">
+                    {promoForm.discountType === 'pct' ? 'Discount %' : 'Discount $'}
+                  </label>
+                  <input
+                    type="number"
+                    min="0.01"
+                    max={promoForm.discountType === 'pct' ? '100' : undefined}
+                    step="0.01"
+                    value={promoForm.discountValue}
+                    onChange={(e) => setPromoForm({ ...promoForm, discountValue: e.target.value })}
+                    placeholder={promoForm.discountType === 'pct' ? '15' : '10.00'}
+                    required
+                    className="w-full rounded-lg border border-white/10 bg-[#0d0d0d] px-3 py-2.5 font-data text-sm text-[#f5f0e8] outline-none transition-colors focus:border-[#e8531a]"
+                  />
+                </div>
+
+                {/* Max uses */}
+                <div>
+                  <label className="mb-1 block text-xs font-semibold uppercase tracking-wider text-[#888]">
+                    Max Uses <span className="normal-case font-normal text-[#555]">(blank = unlimited)</span>
+                  </label>
+                  <input
+                    type="number"
+                    min="1"
+                    value={promoForm.maxUses}
+                    onChange={(e) => setPromoForm({ ...promoForm, maxUses: e.target.value })}
+                    placeholder="Unlimited"
+                    className="w-full rounded-lg border border-white/10 bg-[#0d0d0d] px-3 py-2.5 font-data text-sm text-[#f5f0e8] outline-none transition-colors focus:border-[#e8531a]"
+                  />
+                </div>
+
+                {/* Expiry */}
+                <div>
+                  <label className="mb-1 block text-xs font-semibold uppercase tracking-wider text-[#888]">
+                    Expires <span className="normal-case font-normal text-[#555]">(blank = never)</span>
+                  </label>
+                  <input
+                    type="date"
+                    value={promoForm.expiresAt}
+                    onChange={(e) => setPromoForm({ ...promoForm, expiresAt: e.target.value })}
+                    className="w-full rounded-lg border border-white/10 bg-[#0d0d0d] px-3 py-2.5 text-sm text-[#f5f0e8] outline-none transition-colors focus:border-[#e8531a]"
+                  />
+                </div>
+
+                {/* Submit */}
+                <div className="flex items-end">
+                  <button
+                    type="submit"
+                    disabled={promoCreating}
+                    className="flex w-full items-center justify-center gap-2 rounded-lg bg-[#e8531a] py-2.5 text-sm font-bold uppercase tracking-wider text-[#0d0d0d] transition hover:bg-[#ff6b2c] disabled:opacity-60"
+                  >
+                    {promoCreating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Tag className="h-4 w-4" />}
+                    Create Code
+                  </button>
+                </div>
+              </form>
+            </div>
+
+            {/* Promo list */}
+            {promosLoading ? (
+              <div className="flex h-32 items-center justify-center">
+                <Loader2 className="h-7 w-7 animate-spin text-[#e8531a]" />
+              </div>
+            ) : promos.length === 0 ? (
+              <div className="rounded-2xl border border-white/10 bg-[#1a1a1a] py-16 text-center">
+                <Tag className="mx-auto mb-3 h-10 w-10 text-[#333]" />
+                <p className="text-sm text-[#555]">No promo codes yet. Create one above.</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {promos.map((p) => {
+                  const statusStyle = p.status === 'active'
+                    ? 'bg-green-500/10 text-green-400 border-green-500/20'
+                    : p.status === 'paused'
+                    ? 'bg-yellow-500/10 text-yellow-400 border-yellow-500/20'
+                    : 'bg-red-500/10 text-red-400 border-red-500/20';
+
+                  const isExpired = p.expiresAt && new Date(p.expiresAt) < new Date();
+                  const isMaxed = p.maxUses !== null && p.usedCount >= p.maxUses;
+
+                  return (
+                    <div
+                      key={p.id}
+                      className={cn(
+                        'rounded-xl border bg-[#1a1a1a] p-4',
+                        p.status === 'active' && !isExpired && !isMaxed ? 'border-white/10' : 'border-white/5 opacity-70'
+                      )}
+                    >
+                      <div className="flex flex-wrap items-start gap-3">
+                        {/* Code + badges */}
+                        <div className="flex-1 min-w-0">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span className="font-data text-lg font-bold tracking-widest text-[#f5f0e8]">
+                              {p.code}
+                            </span>
+                            <span className={cn('rounded-full border px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider', statusStyle)}>
+                              {p.status}
+                            </span>
+                            {isExpired && (
+                              <span className="rounded-full bg-red-500/10 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-red-400">
+                                Expired
+                              </span>
+                            )}
+                            {isMaxed && (
+                              <span className="rounded-full bg-orange-500/10 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-orange-400">
+                                Maxed out
+                              </span>
+                            )}
+                          </div>
+                          <div className="mt-1.5 flex flex-wrap gap-x-4 gap-y-1 text-xs text-[#888]">
+                            <span>
+                              {p.discountType === 'pct' ? `${p.discountValue}% off` : `$${p.discountValue.toFixed(2)} off`}
+                            </span>
+                            <span>
+                              {p.usedCount} used{p.maxUses !== null ? ` / ${p.maxUses} max` : ''}
+                            </span>
+                            {p.expiresAt && (
+                              <span>
+                                Expires {new Date(p.expiresAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                              </span>
+                            )}
+                            <span className="text-[#555]">
+                              Created {new Date(p.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Actions */}
+                        <div className="flex items-center gap-2 shrink-0">
+                          {/* Status toggles */}
+                          {p.status !== 'active' && (
+                            <button
+                              onClick={() => handlePromoStatus(p.id, 'active')}
+                              className="flex items-center gap-1.5 rounded-lg border border-green-500/30 px-3 py-1.5 text-xs font-semibold text-green-400 transition hover:bg-green-500/10"
+                            >
+                              <PlayCircle className="h-3.5 w-3.5" /> Activate
+                            </button>
+                          )}
+                          {p.status === 'active' && (
+                            <button
+                              onClick={() => handlePromoStatus(p.id, 'paused')}
+                              className="flex items-center gap-1.5 rounded-lg border border-yellow-500/30 px-3 py-1.5 text-xs font-semibold text-yellow-400 transition hover:bg-yellow-500/10"
+                            >
+                              <PauseCircle className="h-3.5 w-3.5" /> Pause
+                            </button>
+                          )}
+                          {p.status !== 'disabled' && (
+                            <button
+                              onClick={() => handlePromoStatus(p.id, 'disabled')}
+                              className="flex items-center gap-1.5 rounded-lg border border-red-500/20 px-3 py-1.5 text-xs font-semibold text-red-400 transition hover:bg-red-500/10"
+                            >
+                              <ToggleOff className="h-3.5 w-3.5" /> Disable
+                            </button>
+                          )}
+
+                          {/* Delete */}
+                          {promoDeleteConfirm === p.id ? (
+                            <div className="flex items-center gap-1.5">
+                              <button
+                                onClick={() => handlePromoDelete(p.id)}
+                                className="rounded-lg bg-red-500/20 px-3 py-1.5 text-xs font-bold text-red-400 hover:bg-red-500/30"
+                              >
+                                Confirm
+                              </button>
+                              <button
+                                onClick={() => setPromoDeleteConfirm(null)}
+                                className="rounded-lg border border-white/10 px-3 py-1.5 text-xs text-[#888] hover:text-[#f5f0e8]"
+                              >
+                                Cancel
+                              </button>
+                            </div>
+                          ) : (
+                            <button
+                              onClick={() => setPromoDeleteConfirm(p.id)}
+                              className="flex items-center gap-1.5 rounded-lg border border-white/10 px-3 py-1.5 text-xs text-[#555] transition hover:border-red-500/30 hover:text-red-400"
+                            >
+                              <TrashIcon className="h-3.5 w-3.5" />
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             )}
           </div>

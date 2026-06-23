@@ -6,14 +6,6 @@ import { v4 as uuidv4 } from 'uuid';
 const TAX_RATE = 0.08;
 const SERVICE_FEE = 1.5;
 
-// Keep in sync with /api/promo/route.ts
-const PROMOS: Record<string, { type: 'pct' | 'flat'; value: number }> = {
-  FIRE15:    { type: 'pct',  value: 15 },
-  GRILL20:   { type: 'pct',  value: 20 },
-  WELCOME10: { type: 'flat', value: 10 },
-  FIRSTBITE: { type: 'pct',  value: 10 },
-};
-
 interface CartItem {
   id: string;
   name: string;
@@ -49,15 +41,29 @@ export async function POST(req: Request) {
 
   const sub = cartItems.reduce((s, i) => s + i.price * i.quantity, 0);
 
-  // Apply promo discount to subtotal
+  // Validate promo code from DB and apply discount
   let discount = 0;
   let appliedPromo: string | null = null;
-  if (promoCode && PROMOS[promoCode]) {
-    const promo = PROMOS[promoCode];
-    discount = promo.type === 'pct'
-      ? Math.round(sub * (promo.value / 100) * 100) / 100
-      : Math.min(promo.value, sub); // flat discount can't exceed subtotal
-    appliedPromo = promoCode;
+  if (promoCode) {
+    const rows = await sql`
+      SELECT id, "discountType", "discountValue", status, "usedCount", "maxUses", "expiresAt"
+      FROM "PromoCode"
+      WHERE code = ${promoCode} AND status = 'active'
+      LIMIT 1
+    `;
+    const dbPromo = rows[0];
+    if (
+      dbPromo &&
+      (dbPromo.maxUses === null || dbPromo.usedCount < dbPromo.maxUses) &&
+      (!dbPromo.expiresAt || new Date(dbPromo.expiresAt) > new Date())
+    ) {
+      discount = dbPromo.discountType === 'pct'
+        ? Math.round(sub * (dbPromo.discountValue / 100) * 100) / 100
+        : Math.min(dbPromo.discountValue, sub);
+      appliedPromo = promoCode;
+      // increment usedCount non-blocking — order creation is the authoritative moment
+      sql`UPDATE "PromoCode" SET "usedCount" = "usedCount" + 1 WHERE id = ${dbPromo.id}`.catch(() => {});
+    }
   }
 
   const discountedSub = Math.max(0, sub - discount);

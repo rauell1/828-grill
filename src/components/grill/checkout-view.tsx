@@ -250,11 +250,13 @@ function PromoField({
         <div className="relative flex-1">
           <Tag className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#555]" />
           <input
-            placeholder="FIRE15"
+            type="password"
+            autoComplete="off"
+            placeholder="Enter code"
             value={input}
             onChange={(e) => { setInput(e.target.value.toUpperCase()); setError(''); }}
             onKeyDown={(e) => e.key === 'Enter' && handleApply()}
-            className="w-full rounded-lg border border-white/10 bg-[#0d0d0d] py-2.5 pl-9 pr-3 text-sm text-[#f5f0e8] outline-none transition-colors focus:border-[#e8531a] placeholder:text-[#444]"
+            className="w-full rounded-lg border border-white/10 bg-[#0d0d0d] py-2.5 pl-9 pr-3 text-sm text-[#f5f0e8] outline-none transition-colors focus:border-[#e8531a] placeholder:text-[#444] [font-family:monospace]"
           />
         </div>
         <button

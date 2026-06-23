@@ -15,6 +15,7 @@ import { CheckoutView } from '@/components/grill/checkout-view';
 import { AuthView } from '@/components/grill/auth-view';
 import { AccountView } from '@/components/grill/account-view';
 import { OrderConfirmationView } from '@/components/grill/order-confirmation-view';
+import { AdminView } from '@/components/grill/admin-view';
 import type { MenuItemData } from '@/components/grill/menu-card';
 import { Loader2 } from 'lucide-react';
 
@@ -50,7 +51,9 @@ export default function Home() {
       <CartDrawer />
 
       <main className="flex-1">
-        {view === 'home' && (
+        {view === 'admin' && <AdminView />}
+
+        {view !== 'admin' && view === 'home' && (
           <>
             <Hero />
             <Marquee />
@@ -66,7 +69,7 @@ export default function Home() {
           </>
         )}
 
-        {view === 'menu' && (
+        {view !== 'admin' && view === 'menu' && (
           <>
             {loading ? (
               <div className="flex min-h-screen items-center justify-center">
@@ -78,14 +81,14 @@ export default function Home() {
           </>
         )}
 
-        {view === 'checkout' && <CheckoutView />}
-        {view === 'login' && <AuthView />}
-        {view === 'register' && <AuthView />}
-        {view === 'account' && <AccountView />}
-        {view === 'order' && <OrderConfirmationView />}
+        {view !== 'admin' && view === 'checkout' && <CheckoutView />}
+        {view !== 'admin' && view === 'login' && <AuthView />}
+        {view !== 'admin' && view === 'register' && <AuthView />}
+        {view !== 'admin' && view === 'account' && <AccountView />}
+        {view !== 'admin' && view === 'order' && <OrderConfirmationView />}
       </main>
 
-      {view !== 'checkout' && view !== 'login' && view !== 'register' && (
+      {view !== 'admin' && view !== 'checkout' && view !== 'login' && view !== 'register' && (
         <Footer />
       )}
     </div>

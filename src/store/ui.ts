@@ -9,7 +9,8 @@ export type View =
   | 'account'
   | 'login'
   | 'register'
-  | 'order';
+  | 'order'
+  | 'admin';
 
 interface UIState {
   view: View;

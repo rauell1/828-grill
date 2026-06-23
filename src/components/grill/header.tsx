@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { ShoppingBag, Menu as MenuIcon, X, Flame } from 'lucide-react';
+import { ShoppingBag, Menu as MenuIcon, X, Flame, LayoutGrid } from 'lucide-react';
 import { useCart } from '@/store/cart';
 import { useUI, View } from '@/store/ui';
 import { authClient } from '@/lib/auth/client';
@@ -19,6 +19,15 @@ export function Header() {
   const status = isPending ? 'loading' : session ? 'authenticated' : 'unauthenticated';
   const [scrolled, setScrolled] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
+
+  useEffect(() => {
+    if (!session?.user) { setIsAdmin(false); return; }
+    fetch('/api/admin/check')
+      .then((r) => r.json())
+      .then((d) => setIsAdmin(!!d.isAdmin))
+      .catch(() => setIsAdmin(false));
+  }, [session?.user]);
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 20);
@@ -84,6 +93,21 @@ export function Header() {
             Cart
             <span className="font-mono text-[#E8531A]">{cartCount}</span>
           </button>
+
+          {/* Admin link — only for admin users */}
+          {isAdmin && (
+            <button
+              onClick={() => handleNav('admin')}
+              className={cn(
+                'hidden items-center gap-1.5 text-xs font-bold uppercase tracking-[0.18em] transition-colors sm:flex',
+                view === 'admin' ? 'text-[#e8531a]' : 'text-[#555] hover:text-[#e8531a]'
+              )}
+              aria-label="Admin panel"
+            >
+              <LayoutGrid className="h-3.5 w-3.5" />
+              Admin
+            </button>
+          )}
 
           {/* Sign In — plain text link (ZIP 1) */}
           {status === 'loading' ? (

@@ -266,9 +266,7 @@ export function AdminView() {
       <header className="sticky top-0 z-40 border-b border-white/10 bg-[#0d0d0d]/95 backdrop-blur-xl">
         <div className="mx-auto flex h-14 max-w-screen-xl items-center justify-between px-5">
           <div className="flex items-center gap-3">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#e8531a]">
-              <Flame className="h-4 w-4 text-white" />
-            </div>
+            <img src="/logo.png" alt="828 Grill Logo" className="h-8 w-8 object-contain" />
             <span className="font-display text-xl tracking-wider text-[#f5f0e8]">
               828 <span className="text-[#e8531a]">ADMIN</span>
             </span>

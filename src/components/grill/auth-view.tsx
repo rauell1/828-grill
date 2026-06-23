@@ -97,9 +97,7 @@ export function AuthView() {
         <div className="rounded-2xl border border-white/10 bg-[#1a1a1a] p-7">
           {/* Logo */}
           <div className="mb-6 text-center">
-            <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-xl bg-[#e8531a]">
-              <Flame className="h-6 w-6 text-[#0d0d0d]" />
-            </div>
+            <img src="/logo.png" alt="828 Grill Logo" className="mx-auto mb-3 h-16 w-16 object-contain" />
             <h1 className="font-display text-3xl tracking-wider text-[#f5f0e8]">
               828 <span className="text-[#e8531a]">GRILL</span>
             </h1>

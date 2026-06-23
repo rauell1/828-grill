@@ -57,9 +57,7 @@ export function Header() {
           className="flex items-center gap-2 transition-opacity hover:opacity-80"
           aria-label="828 Grill home"
         >
-          <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-[#e8531a] text-[#0d0d0d]">
-            <Flame className="h-5 w-5" />
-          </span>
+          <img src="/logo.png" alt="828 Grill Logo" className="h-9 w-9 object-contain" />
           <span className="font-display text-2xl leading-none tracking-wider text-[#f5f0e8]">
             828 <span className="text-[#e8531a]">GRILL</span>
           </span>

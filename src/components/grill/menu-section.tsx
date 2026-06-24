@@ -45,7 +45,7 @@ export function MenuSection({ items }: { items: MenuItemData[] }) {
   }, [items, active, search]);
 
   return (
-    <section id="menu" className="min-h-screen pb-24">
+    <section id="menu" className="min-h-screen pb-24 pt-16">
       {/* Closed banner */}
       {hours && !hours.isOpen && (
         <div className="border-b border-yellow-500/20 bg-yellow-500/8 px-4 py-3">

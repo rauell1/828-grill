@@ -20,6 +20,7 @@ export function Header() {
   const [scrolled, setScrolled] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
+  const solid = scrolled || view !== 'home';
 
   useEffect(() => {
     if (!session?.user) { setIsAdmin(false); return; }
@@ -45,7 +46,7 @@ export function Header() {
     <header
       className={cn(
         'fixed inset-x-0 top-0 z-50 transition-all duration-300',
-        scrolled
+        solid
           ? 'border-b border-white/10 bg-[#0d0d0d]/90 backdrop-blur-xl'
           : 'bg-transparent'
       )}

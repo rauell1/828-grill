@@ -60,7 +60,7 @@ export async function POST(req: Request) {
     VALUES (
       ${id},
       ${title},
-      ${session.email ?? null},
+      ${session.user?.email ?? null},
       ${fileData},
       ${fileSizeBytes},
       ${snapshotJson ? JSON.stringify(snapshotJson) : null}

@@ -82,6 +82,8 @@ If a bad env var causes issues:
 <!-- AUTO:snapshots -->
 | Commit | Date (UTC) | Description | Files changed |
 |--------|------------|-------------|---------------|
+| `a733a81` | 2026-06-26 04:35 UTC | feat(reports): PDF report generation + Neon persistence; add | .gitignore, package-lock.json, package.json, src/app/api/admin/reports/[id]/route.ts, src/app/api/admin/reports/route.ts, tsconfig.tsbuildinfo |
+|--------|------------|-------------|---------------|
 | `7283f15` | 2026-06-24 12:25 UTC | fix(header): solid bg on non-home views; add pt-16 to menu s | src/components/grill/header.tsx, src/components/grill/menu-section.tsx |
 |--------|------------|-------------|---------------|
 | `e7be683` | 2026-06-23 21:24 UTC | Fix admin order visibility for guest checkouts and improve m | bun.lock, package-lock.json, package.json, prisma/schema.prisma, src/app/api/admin/orders/[id]/route.ts, src/app/api/admin/orders/route.ts, src/app/globals.css, src/components/grill/admin-view.tsx |

@@ -131,6 +131,8 @@ Activated when `view = 'admin'` — available only to emails listed in `ADMIN_EM
 | GET/PUT | `/api/admin/orders/[id]` |
 | GET/POST | `/api/admin/promo` |
 | PUT/DELETE | `/api/admin/promo/[id]` |
+| GET/POST | `/api/admin/reports` |
+| GET/DELETE | `/api/admin/reports/[id]` |
 | GET/POST | `/api/auth/[...path]` |
 | POST | `/api/auth/login` |
 | POST | `/api/auth/logout` |

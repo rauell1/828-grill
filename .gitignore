@@ -35,6 +35,10 @@ jspm_packages/
 .DS_Store
 Thumbs.db
 
+# TypeScript build cache
+tsconfig.tsbuildinfo
+*.tsbuildinfo
+
 # Custom / Temp
 upload/zip-extracted/
 tool-results/

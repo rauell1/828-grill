@@ -82,6 +82,8 @@ If a bad env var causes issues:
 <!-- AUTO:snapshots -->
 | Commit | Date (UTC) | Description | Files changed |
 |--------|------------|-------------|---------------|
+| `0bc07a4` | 2026-06-26 04:37 UTC | security: remove hardcoded admin email fallback — require AD | src/lib/admin.ts |
+|--------|------------|-------------|---------------|
 | `a733a81` | 2026-06-26 04:35 UTC | feat(reports): PDF report generation + Neon persistence; add | .gitignore, package-lock.json, package.json, src/app/api/admin/reports/[id]/route.ts, src/app/api/admin/reports/route.ts, tsconfig.tsbuildinfo |
 |--------|------------|-------------|---------------|
 | `7283f15` | 2026-06-24 12:25 UTC | fix(header): solid bg on non-home views; add pt-16 to menu s | src/components/grill/header.tsx, src/components/grill/menu-section.tsx |

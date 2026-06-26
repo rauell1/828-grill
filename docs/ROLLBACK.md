@@ -82,6 +82,8 @@ If a bad env var causes issues:
 <!-- AUTO:snapshots -->
 | Commit | Date (UTC) | Description | Files changed |
 |--------|------------|-------------|---------------|
+| `fd78ea1` | 2026-06-26 04:52 UTC | fix(build): correct session.user.email access in reports rou | src/app/api/admin/reports/route.ts |
+|--------|------------|-------------|---------------|
 | `0bc07a4` | 2026-06-26 04:37 UTC | security: remove hardcoded admin email fallback — require AD | src/lib/admin.ts |
 |--------|------------|-------------|---------------|
 | `a733a81` | 2026-06-26 04:35 UTC | feat(reports): PDF report generation + Neon persistence; add | .gitignore, package-lock.json, package.json, src/app/api/admin/reports/[id]/route.ts, src/app/api/admin/reports/route.ts, tsconfig.tsbuildinfo |

@@ -1,8 +1,6 @@
 import { auth } from './auth/server';
 
-const DEFAULT_ADMIN = 'royokola3@gmail.com';
-
-const ADMIN_EMAILS = (process.env.ADMIN_EMAILS ?? process.env.ADMIN_EMAIL ?? DEFAULT_ADMIN)
+const ADMIN_EMAILS = (process.env.ADMIN_EMAILS ?? process.env.ADMIN_EMAIL ?? '')
   .split(',')
   .map((e) => e.trim().toLowerCase())
   .filter(Boolean);
